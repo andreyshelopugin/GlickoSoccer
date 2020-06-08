@@ -7,26 +7,39 @@ from glicko2 import Glicko2, Rating
 from glicko_soccer.glicko_soccer import GlickoSoccer
 
 
-class FutureMatches(object):
+class Predict(object):
 
-    @staticmethod
-    def monte_carlo(ratings: Rating(), schedule: pd.DataFrame, tournament: str,
-                    home_advantage: float, draw_inclination: float, number_iterations: int):
+    def __init__(self, is_draw_mode=True, is_prev_season_init=False):
+        self.is_draw_mode = is_draw_mode
+        self.is_prev_season_init = is_prev_season_init
+
+    def monte_carlo(self, ratings: Rating(), schedule: pd.DataFrame, tournament: str,
+                    home_advantage: float, draw_inclination: float, number_iterations: int) -> pd.DataFrame:
         """"""
+        glicko = Glicko2(is_draw_mode=self.is_draw_mode, draw_inclination=draw_inclination)
 
         played_matches = schedule.loc[(schedule['outcome'] != 'F') & (schedule['tournament'] == tournament)]
-        future_matches = schedule.loc[(schedule['outcome'] == 'F') & (schedule['tournament'] == tournament)]
 
-        glicko = Glicko2(draw_inclination=draw_inclination)
+        played_matches[['home_score', 'away_score']] = played_matches[['home_score', 'away_score']].to_numpy('int')
+
+        ratings = GlickoSoccer().rate_teams(played_matches, ratings, draw_inclination, home_advantage)
 
         # calculate points in played matches
-        points = {team: 0 for team in played_matches['home_team'].unique()}
-        matches_played = {team: 0 for team in played_matches['home_team'].unique()}
+        teams = played_matches['home_team'].unique()
+
+        points = {team: 0 for team in teams}
+        goal_diff = {team: 0 for team in teams}
+        matches_played = {team: 0 for team in teams}
         for index, row in played_matches.iterrows():
 
             home_team, away_team = row['home_team'], row['away_team']
+            home_score, away_score = row['home_score'], row['away_score']
+
             matches_played[home_team] += 1
             matches_played[away_team] += 1
+
+            goal_diff[home_team] += (home_score - away_score)
+            goal_diff[away_team] += (away_score - home_score)
 
             if row['outcome'] == 'H':
                 points[home_team] += 3
@@ -39,9 +52,13 @@ class FutureMatches(object):
                 points[away_team] += 3
 
         # simulate future matches
-        predicted_places = {team: [] for team in points}
+        future_matches = schedule.loc[(schedule['outcome'] == 'F') & (schedule['tournament'] == tournament),
+                                      ['home_team', 'away_team']]
+
+        predicted_places = {team: [] for team in teams}
         for i in tqdm(range(number_iterations)):
-            predicted_points = {team: 0 for team in points}
+            predicted_points = {team: 0 for team in teams}
+            predicted_goal_diff = {team: 0 for team in teams}
 
             for index, row in future_matches.iterrows():
                 home_team, away_team = row['home_team'], row['away_team']
@@ -54,6 +71,9 @@ class FutureMatches(object):
                 if random_number < win_probability:
                     predicted_points[home_team] += 3
 
+                    predicted_goal_diff[home_team] += 1
+                    predicted_goal_diff[away_team] -= 1
+
                 elif random_number < win_probability + tie_probability:
                     predicted_points[home_team] += 1
                     predicted_points[away_team] += 1
@@ -61,10 +81,15 @@ class FutureMatches(object):
                 else:
                     predicted_points[away_team] += 3
 
-            total_points = {team: (points[team] + predicted_points[team]) for team in points}
+                    predicted_goal_diff[away_team] += 1
+                    predicted_goal_diff[home_team] -= 1
+
+            total_points = {team: (points[team] + predicted_points[team], goal_diff[team] + predicted_goal_diff[team])
+                            for team in teams}
+
             sorted_points = {team: points for team, points in sorted(total_points.items(), key=lambda item: item[1], reverse=True)}
 
-            # rank teams in order of number of points
+            # rank teams in order of number of points and goal difference in played matches
             team_places = {team: list(sorted_points.keys()).index(team) + 1 for team in sorted_points}
             for team, place in team_places.items():
                 predicted_places[team].append(place)
@@ -80,29 +105,31 @@ class FutureMatches(object):
                             .rename(columns={'index': 'team'}))
 
         # current points and matches played
-        predicted_places['points'] = predicted_places['team'].map(points)
+        predicted_places['points'] = predicted_places['team'].map(lambda team: points[team])
+        predicted_places['goal_diff'] = predicted_places['team'].map(lambda team: goal_diff[team])
+
         predicted_places['matches'] = predicted_places['team'].map(matches_played)
 
-        columns_order = (['team', 'matches', 'points'] + [n for n in range(1, 20)])
+        columns_order = (['team', 'matches', 'points', 'goal_diff'] + [n for n in range(1, 21)])
 
         predicted_places = (predicted_places
                             .loc[:, columns_order]
-                            .sort_values(['points'], ascending=False)
+                            .sort_values(['points', 'goal_diff'], ascending=False)
                             .reset_index(drop=True)
                             .reset_index()
-                            .rename(columns={'index': 'place'}))
+                            .rename(columns={'index': 'rk'}))
 
-        predicted_places['place'] += 1
+        predicted_places['rk'] += 1
 
         return predicted_places
 
     def transform(self, results: pd.DataFrame, schedule: pd.DataFrame, current_season: int, tournament: str,
-                  home_advantage: float, draw_inclination: float, new_teams_rating: float, number_iterations: int,
-                  is_prev_season_init):
+                  init_rd: float, draw_inclination: float, home_advantage: float, new_teams_rating: float,
+                  number_iterations: int):
         """"""
 
-        init_ratings = GlickoSoccer().get_ratings(results, schedule, current_season, tournament, home_advantage,
-                                                  draw_inclination, new_teams_rating, is_prev_season_init)
+        init_ratings = GlickoSoccer().ratings_initialization(results, schedule, current_season, tournament,
+                                                             init_rd, draw_inclination, home_advantage, new_teams_rating)
 
         team_places = self.monte_carlo(init_ratings, schedule, tournament, home_advantage, draw_inclination, number_iterations)
         return team_places

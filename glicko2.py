@@ -4,7 +4,7 @@ from typing import Tuple
 
 class Rating(object):
 
-    def __init__(self, mu=2000., rd=200., volatility=0.06):
+    def __init__(self, mu=2000., rd=200., volatility=0.02):
         self.mu = mu
         self.rd = rd
         self.volatility = volatility
@@ -22,7 +22,8 @@ class Rating(object):
 
 class Glicko2(object):
 
-    def __init__(self, mu=2000., rd=200., volatility=0.06, tau=1, epsilon=0.000001, is_draw_mode=True, draw_inclination=-0.2):
+    def __init__(self, mu=2000., rd=200., volatility=0.02, tau=1, epsilon=0.000001, is_draw_mode=True, draw_inclination=-0.2,
+                 draw_penalty=0.01):
         self.mu = mu
         self.rd = rd
         self.volatility = volatility
@@ -32,6 +33,7 @@ class Glicko2(object):
         self.epsilon = epsilon
         self.is_draw_mode = is_draw_mode
         self.draw_inclination = draw_inclination
+        self.draw_penalty = draw_penalty
 
     def _convert_into_glicko2(self, rating: Rating) -> Rating:
         """
@@ -55,7 +57,7 @@ class Glicko2(object):
         """
             Function g, which is used in step 3 and others.
         """
-        g = 1 / sqrt(1 + 3 * (phi ** 2 + phi_opp ** 2) / pi ** 2)
+        g = 1 / sqrt(1 + 1.5 * (phi ** 2 + phi_opp ** 2) / pi ** 2)
         return g
 
     @staticmethod
@@ -193,29 +195,34 @@ class Glicko2(object):
         """"""
         return Rating(rating.mu + addition, rating.rd, rating.volatility)
 
-    def rate(self, rating: Rating, rating_opp: Rating, advantage: float, is_draw=False) -> Tuple[Rating, Rating]:
+    def rate(self, home_rating: Rating, away_rating: Rating, advantage: float, outcome: str) -> Tuple[Rating, Rating]:
         """
-            rating - rating of winning team.
-            rating_opp - rating of losing team.
+            home_rating - rating of home team.
+            away_rating - rating of away team.
             advantage - home court, injures, etc. advantage of winning team, can be negative.
         """
         # take into account the advantage
-        increased_rating = self._increase_mu(rating, advantage)
-        decreased_rating = self._increase_mu(rating_opp, -advantage)
+        increased_home_rating = self._increase_mu(home_rating, advantage)
+        decreased_away_rating = self._increase_mu(away_rating, -advantage)
 
         # update ratings
-        if is_draw:
-            new_increased_rating = self._update_rating(increased_rating, decreased_rating, 0.5)
-            new_decreased_rating = self._update_rating(decreased_rating, increased_rating, 0.5)
+        if outcome == 'H':
+            new_increased_home_rating = self._update_rating(increased_home_rating, decreased_away_rating, 1)
+            new_decreased_away_rating = self._update_rating(decreased_away_rating, increased_home_rating, 0)
+
+        elif outcome == 'D':
+            new_increased_home_rating = self._update_rating(increased_home_rating, decreased_away_rating, 0.5)
+            new_decreased_away_rating = self._update_rating(decreased_away_rating, increased_home_rating, 0.5)
+
         else:
-            new_increased_rating = self._update_rating(increased_rating, decreased_rating, 1)
-            new_decreased_rating = self._update_rating(decreased_rating, increased_rating, 0)
+            new_increased_home_rating = self._update_rating(increased_home_rating, decreased_away_rating, 0)
+            new_decreased_away_rating = self._update_rating(decreased_away_rating, increased_home_rating, 1)
 
         # subtract advantage
-        updated_rating = self._increase_mu(new_increased_rating, -advantage)
-        updated_rating_opp = self._increase_mu(new_decreased_rating, advantage)
+        updated_home_rating = self._increase_mu(new_increased_home_rating, -advantage)
+        updated_away_rating = self._increase_mu(new_decreased_away_rating, advantage)
 
-        return updated_rating, updated_rating_opp
+        return updated_home_rating, updated_away_rating
 
     def probabilities(self, team: Rating, opp_team: Rating, advantage: float) -> Tuple[float, float, float]:
         """
@@ -229,13 +236,15 @@ class Glicko2(object):
         phi = (team.rd * self.q)
         phi_opp = (opp_team.rd * self.q)
 
-        g = 1 / sqrt(1 + 3 * (phi ** 2 + phi_opp ** 2) / pi ** 2)
+        g = 1 / sqrt(1 + 1.5 * (phi ** 2 + phi_opp ** 2) / pi ** 2)
 
         delta_mu = (mu - mu_opp)
 
         if self.is_draw_mode:
-            win_probability = 1 / (1 + exp(-g * delta_mu) + exp(self.draw_inclination - g * delta_mu))
-            loss_probability = 1 / (1 + exp(g * delta_mu) + exp(self.draw_inclination + g * delta_mu))
+            draw_penalty = self.draw_penalty * max(mu, mu_opp)
+
+            win_probability = 1 / (1 + exp(-g * delta_mu) + exp(self.draw_inclination - delta_mu - draw_penalty))
+            loss_probability = 1 / (1 + exp(g * delta_mu) + exp(self.draw_inclination + delta_mu - draw_penalty))
             tie_probability = (1 - win_probability - loss_probability)
 
         else:
@@ -244,4 +253,3 @@ class Glicko2(object):
             tie_probability = 0
 
         return win_probability, tie_probability, loss_probability
-
