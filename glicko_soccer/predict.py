@@ -1,4 +1,6 @@
+from collections import Counter
 from random import uniform
+from typing import Tuple
 
 import pandas as pd
 from tqdm import tqdm
@@ -9,9 +11,46 @@ from glicko_soccer.glicko_soccer import GlickoSoccer
 
 class Predict(object):
 
-    def __init__(self, is_draw_mode=True, is_prev_season_init=False):
+    def __init__(self, is_draw_mode=True, is_prev_season_init=False, avg_win_score_diff=1.83):
         self.is_draw_mode = is_draw_mode
         self.is_prev_season_init = is_prev_season_init
+        self.avg_win_score_diff = avg_win_score_diff
+
+    @staticmethod
+    def _current_standings(matches: pd.DataFrame) -> Tuple[dict, dict, dict]:
+        """
+            Calculate points, goal difference, a number of played matches in previous games.
+        """
+        matches[['home_score', 'away_score']] = matches[['home_score', 'away_score']].to_numpy('int')
+
+        teams = matches['home_team'].unique()
+
+        points = {team: 0 for team in teams}
+        goal_diff = {team: 0 for team in teams}
+        matches_played = {team: 0 for team in teams}
+
+        for row in matches.itertuples():
+
+            outcome, home_team, away_team = row.outcome, row.home_team, row.away_team
+            home_score, away_score = row.home_score, row.away_score
+
+            matches_played[home_team] += 1
+            matches_played[away_team] += 1
+
+            goal_diff[home_team] += (home_score - away_score)
+            goal_diff[away_team] += (away_score - home_score)
+
+            if outcome == 'H':
+                points[home_team] += 3
+
+            elif outcome == 'D':
+                points[home_team] += 1
+                points[away_team] += 1
+
+            else:
+                points[away_team] += 3
+
+        return points, goal_diff, matches_played
 
     def monte_carlo(self, ratings: Rating(), schedule: pd.DataFrame, tournament: str,
                     home_advantage: float, draw_inclination: float, number_iterations: int) -> pd.DataFrame:
@@ -20,36 +59,13 @@ class Predict(object):
 
         played_matches = schedule.loc[(schedule['outcome'] != 'F') & (schedule['tournament'] == tournament)]
 
-        played_matches[['home_score', 'away_score']] = played_matches[['home_score', 'away_score']].to_numpy('int')
-
+        # calculate ratings in played matches
         ratings = GlickoSoccer().rate_teams(played_matches, ratings, draw_inclination, home_advantage)
 
         # calculate points in played matches
+        points, goal_diff, matches_played = self._current_standings(played_matches)
+
         teams = played_matches['home_team'].unique()
-
-        points = {team: 0 for team in teams}
-        goal_diff = {team: 0 for team in teams}
-        matches_played = {team: 0 for team in teams}
-        for index, row in played_matches.iterrows():
-
-            home_team, away_team = row['home_team'], row['away_team']
-            home_score, away_score = row['home_score'], row['away_score']
-
-            matches_played[home_team] += 1
-            matches_played[away_team] += 1
-
-            goal_diff[home_team] += (home_score - away_score)
-            goal_diff[away_team] += (away_score - home_score)
-
-            if row['outcome'] == 'H':
-                points[home_team] += 3
-
-            elif row['outcome'] == 'D':
-                points[home_team] += 1
-                points[away_team] += 1
-
-            else:
-                points[away_team] += 3
 
         # simulate future matches
         future_matches = schedule.loc[(schedule['outcome'] == 'F') & (schedule['tournament'] == tournament),
@@ -60,8 +76,9 @@ class Predict(object):
             predicted_points = {team: 0 for team in teams}
             predicted_goal_diff = {team: 0 for team in teams}
 
-            for index, row in future_matches.iterrows():
-                home_team, away_team = row['home_team'], row['away_team']
+            for row in future_matches.itertuples():
+
+                home_team, away_team = row.home_team, row.away_team
                 home_rating, away_rating = ratings[home_team], ratings[away_team]
 
                 win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating, away_rating, home_advantage)
@@ -71,8 +88,8 @@ class Predict(object):
                 if random_number < win_probability:
                     predicted_points[home_team] += 3
 
-                    predicted_goal_diff[home_team] += 1
-                    predicted_goal_diff[away_team] -= 1
+                    predicted_goal_diff[home_team] += self.avg_win_score_diff
+                    predicted_goal_diff[away_team] -= self.avg_win_score_diff
 
                 elif random_number < win_probability + tie_probability:
                     predicted_points[home_team] += 1
@@ -81,8 +98,8 @@ class Predict(object):
                 else:
                     predicted_points[away_team] += 3
 
-                    predicted_goal_diff[away_team] += 1
-                    predicted_goal_diff[home_team] -= 1
+                    predicted_goal_diff[away_team] += self.avg_win_score_diff
+                    predicted_goal_diff[home_team] -= self.avg_win_score_diff
 
             total_points = {team: (points[team] + predicted_points[team], goal_diff[team] + predicted_goal_diff[team])
                             for team in teams}
@@ -97,7 +114,8 @@ class Predict(object):
         # calculate frequency of places of each team
         for team, places in predicted_places.items():
             predicted_places[team] = {place: 0 for place in range(1, 21)}
-            predicted_places[team].update({place: round(100 * places.count(place) / number_iterations, 1) for place in places})
+            counter = Counter(places)
+            predicted_places[team].update({place: round(100 * counts / number_iterations, 2) for place, counts in counter.items()})
 
         predicted_places = pd.DataFrame.from_dict(predicted_places, orient='index')
         predicted_places = (predicted_places

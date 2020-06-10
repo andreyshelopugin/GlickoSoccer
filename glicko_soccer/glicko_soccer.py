@@ -10,9 +10,10 @@ from glicko2 import Glicko2, Rating
 
 class GlickoSoccer(object):
 
-    def __init__(self, is_draw_mode=True, is_prev_season_init=False):
+    def __init__(self, is_draw_mode=True, is_prev_season_init=False, between_train_test_round=19):
         self.is_draw_mode = is_draw_mode
         self.is_prev_season_init = is_prev_season_init
+        self.between_train_test_round = between_train_test_round
 
     def rate_teams(self, matches: pd.DataFrame, ratings: Rating(), draw_inclination: float, home_advantage: float) -> Rating():
         """
@@ -21,8 +22,8 @@ class GlickoSoccer(object):
 
         glicko = Glicko2(is_draw_mode=self.is_draw_mode, draw_inclination=draw_inclination)
 
-        for index, row in matches.iterrows():
-            outcome, home_team, away_team = row['outcome'], row['home_team'], row['away_team']
+        for row in matches.itertuples():
+            outcome, home_team, away_team = row.outcome, row.home_team, row.away_team
 
             ratings[home_team], ratings[away_team] = glicko.rate(ratings[home_team], ratings[away_team], home_advantage, outcome)
 
@@ -88,24 +89,30 @@ class GlickoSoccer(object):
         # initialize Glicko2 with specific draw inclination
         glicko = Glicko2(is_draw_mode=self.is_draw_mode, draw_inclination=draw_inclination)
 
+        # separate matches into two parts: calculate ratings from first part,
+        # for second part predict matches, calculate loss value
         matches = results.loc[(results['tournament'] == tournament) & (results['season'] == season)]
+        train_matches = matches.loc[matches['round'] < self.between_train_test_round]
+        test_matches = matches.loc[matches['round'] > self.between_train_test_round]
 
         ratings = self.ratings_initialization(results, matches, season, tournament, init_rd, draw_inclination,
                                               home_advantage, new_teams_rating)
 
-        log_loss_value = 0
-        number_matches = matches.shape[0]
-        for index, row in matches.iterrows():
+        ratings = self.rate_teams(train_matches, ratings, draw_inclination, home_advantage)
 
-            outcome, home_team, away_team = row['outcome'], row['home_team'], row['away_team']
+        log_loss_value = 0
+        number_matches = test_matches.shape[0]
+        for row in test_matches.itertuples():
+            outcome, home_team, away_team = row.outcome, row.home_team, row.away_team
 
             # get current team ratings
             home_rating, away_rating = ratings[home_team], ratings[away_team]
 
+            # update team ratings
+            ratings[home_team], ratings[away_team] = glicko.rate(home_rating, away_rating, home_advantage, outcome)
+
             # calculate outcome probabilities
             win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating, away_rating, home_advantage)
-
-            ratings[home_team], ratings[away_team] = glicko.rate(home_rating, away_rating, home_advantage, outcome)
 
             log_loss_value += self._log_loss(outcome, win_probability, tie_probability, loss_probability)
 
