@@ -2,10 +2,10 @@ from itertools import product
 from typing import List, Tuple, Dict
 
 import pandas as pd
-from sklearn.metrics import log_loss
 from tqdm import tqdm
 
 from glicko2 import Glicko2, Rating
+from utils.metrics import match_log_loss
 
 
 class GlickoSoccer(object):
@@ -15,7 +15,8 @@ class GlickoSoccer(object):
         self.is_prev_season_init = is_prev_season_init
         self.between_train_test_round = between_train_test_round
 
-    def rate_teams(self, matches: pd.DataFrame, ratings: Rating(), draw_inclination: float, home_advantage: float) -> Rating():
+    def rate_teams(self, matches: pd.DataFrame, ratings: Rating(), draw_inclination: float,
+                   home_advantage: float) -> Rating():
         """
             Calculate the ratings of teams using the history of matches
         """
@@ -25,12 +26,15 @@ class GlickoSoccer(object):
         for row in matches.itertuples():
             outcome, home_team, away_team = row.outcome, row.home_team, row.away_team
 
-            ratings[home_team], ratings[away_team] = glicko.rate(ratings[home_team], ratings[away_team], home_advantage, outcome)
+            ratings[home_team], ratings[away_team] = glicko.rate(ratings[home_team], ratings[away_team], home_advantage,
+                                                                 outcome)
 
         return ratings
 
-    def ratings_initialization(self, results: pd.DataFrame, schedule: pd.DataFrame, current_season: int, tournament: str,
-                               init_rd: float, draw_inclination: float, home_advantage: float, new_teams_rating: float) -> Rating():
+    def ratings_initialization(self, results: pd.DataFrame, schedule: pd.DataFrame, current_season: int,
+                               tournament: str,
+                               init_rd: float, draw_inclination: float, home_advantage: float,
+                               new_teams_rating: float) -> Rating():
         """
             Two ways of rating initialization:
             1) all teams get the same rating
@@ -40,7 +44,8 @@ class GlickoSoccer(object):
         teams = schedule.loc[(schedule['tournament'] == tournament), 'home_team'].unique()
 
         if self.is_prev_season_init:
-            previous_matches = results.loc[(results['tournament'] == tournament) & (results['season'] == (current_season - 1))]
+            previous_matches = results.loc[
+                (results['tournament'] == tournament) & (results['season'] == (current_season - 1))]
             previous_teams = previous_matches['home_team'].unique()
 
             init_ratings = {team: Rating(rd=init_rd) for team in previous_teams}
@@ -62,26 +67,8 @@ class GlickoSoccer(object):
 
         return ratings
 
-    @staticmethod
-    def _log_loss(outcome: str, win_probability: float, tie_probability: float, loss_probability: float) -> float:
-        """
-            Calculate log loss value of one match.
-        """
-        predict = [win_probability, tie_probability, loss_probability]
-
-        if outcome == 'H':
-            target = [1, 0, 0]
-
-        elif outcome == 'D':
-            target = [0, 1, 0]
-
-        else:
-            target = [0, 0, 1]
-
-        return log_loss(target, predict)
-
-    def calculate_loss(self, results: pd.DataFrame, tournament: str, season: int, init_rd: float, draw_inclination: float,
-                       home_advantage: float, new_teams_rating: float) -> float:
+    def calculate_loss(self, results: pd.DataFrame, tournament: str, season: int, init_rd: float,
+                       draw_inclination: float, home_advantage: float, new_teams_rating: float) -> float:
         """
             Calculate the value of the loss function
         """
@@ -92,13 +79,18 @@ class GlickoSoccer(object):
         # separate matches into two parts: calculate ratings from first part,
         # for second part predict matches, calculate loss value
         matches = results.loc[(results['tournament'] == tournament) & (results['season'] == season)]
-        train_matches = matches.loc[matches['round'] < self.between_train_test_round]
-        test_matches = matches.loc[matches['round'] > self.between_train_test_round]
 
         ratings = self.ratings_initialization(results, matches, season, tournament, init_rd, draw_inclination,
                                               home_advantage, new_teams_rating)
 
-        ratings = self.rate_teams(train_matches, ratings, draw_inclination, home_advantage)
+        if self.between_train_test_round == 0:
+            test_matches = matches
+
+        else:
+            train_matches = matches.loc[matches['round'] < self.between_train_test_round]
+            test_matches = matches.loc[matches['round'] > self.between_train_test_round]
+
+            ratings = self.rate_teams(train_matches, ratings, draw_inclination, home_advantage)
 
         log_loss_value = 0
         number_matches = test_matches.shape[0]
@@ -112,17 +104,18 @@ class GlickoSoccer(object):
             ratings[home_team], ratings[away_team] = glicko.rate(home_rating, away_rating, home_advantage, outcome)
 
             # calculate outcome probabilities
-            win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating, away_rating, home_advantage)
+            win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating, away_rating,
+                                                                                      home_advantage)
 
-            log_loss_value += self._log_loss(outcome, win_probability, tie_probability, loss_probability)
+            log_loss_value += match_log_loss(outcome, win_probability, tie_probability, loss_probability)
 
         log_loss_value /= number_matches
 
         return log_loss_value
 
     def fit_parameters(self, results: pd.DataFrame, tournament: str, seasons: List[int],
-                       init_rds: List[float], draw_inclinations: List[float],
-                       home_advantages: List[float], new_teams_ratings: List[float]) -> Tuple[Tuple[float], float, Dict]:
+                       init_rds: List[float], draw_inclinations: List[float], home_advantages: List[float],
+                       new_teams_ratings: List[float]) -> Tuple[Tuple[float], float, Dict]:
 
         matches = results.loc[(results['tournament'] == tournament) & results['season'].isin(seasons)]
 
@@ -136,7 +129,8 @@ class GlickoSoccer(object):
 
             parameters_loss[parameters] = 0
             for season in seasons:
-                loss = self.calculate_loss(matches, tournament, season, init_rd, draw_inclination, home_advantage, new_teams_rating)
+                loss = self.calculate_loss(matches, tournament, season, init_rd, draw_inclination, home_advantage,
+                                           new_teams_rating)
 
                 parameters_loss[parameters] += loss
 

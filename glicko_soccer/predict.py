@@ -11,7 +11,7 @@ from glicko_soccer.glicko_soccer import GlickoSoccer
 
 class Predict(object):
 
-    def __init__(self, is_draw_mode=True, is_prev_season_init=False, avg_win_score_diff=1.83):
+    def __init__(self, is_draw_mode=True, is_prev_season_init=False, avg_win_score_diff=1.28):
         self.is_draw_mode = is_draw_mode
         self.is_prev_season_init = is_prev_season_init
         self.avg_win_score_diff = avg_win_score_diff

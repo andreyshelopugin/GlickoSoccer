@@ -4,7 +4,7 @@ from typing import Tuple
 
 class Rating(object):
 
-    def __init__(self, mu=2000., rd=200., volatility=0.0001):
+    def __init__(self, mu=1500., rd=200., volatility=0.0001):
         self.mu = mu
         self.rd = rd
         self.volatility = volatility
@@ -16,7 +16,7 @@ class Rating(object):
 
 class Glicko2(object):
 
-    def __init__(self, mu=2000., rd=200., tau=1, epsilon=0.000001, is_draw_mode=True, draw_inclination=-0.2,
+    def __init__(self, mu=1500., rd=200., tau=1, epsilon=0.000001, is_draw_mode=True, draw_inclination=-0.2,
                  draw_penalty=0.01):
         self.mu = mu
         self.rd = rd
@@ -246,3 +246,9 @@ class Glicko2(object):
             tie_probability = 0
 
         return win_probability, tie_probability, loss_probability
+
+
+# t1 = Rating(mu=1516)
+# t2 = Rating(mu=1500)
+#
+# print(Glicko2().probabilities(t1, t2, 0))
