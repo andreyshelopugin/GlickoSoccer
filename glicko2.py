@@ -4,7 +4,7 @@ from typing import Tuple
 
 class Rating(object):
 
-    def __init__(self, mu=1500., rd=200., volatility=0.0001):
+    def __init__(self, mu=1500., rd=200., volatility=0.06):
         self.mu = mu
         self.rd = rd
         self.volatility = volatility
@@ -16,8 +16,7 @@ class Rating(object):
 
 class Glicko2(object):
 
-    def __init__(self, mu=1500., rd=200., tau=1, epsilon=0.000001, is_draw_mode=True, draw_inclination=-0.2,
-                 draw_penalty=0.01):
+    def __init__(self, mu=1500., rd=200., tau=1, epsilon=0.000001, is_draw_mode=True, draw_inclination=-0.2):
         self.mu = mu
         self.rd = rd
         self.tau = tau
@@ -26,7 +25,6 @@ class Glicko2(object):
         self.epsilon = epsilon
         self.is_draw_mode = is_draw_mode
         self.draw_inclination = draw_inclination
-        self.draw_penalty = draw_penalty
 
     def _convert_into_glicko2(self, rating: Rating) -> Rating:
         """
@@ -87,13 +85,14 @@ class Glicko2(object):
         """
             Used in step 5.
         """
-        phi = rating.rd
-        vol = rating.volatility
+        exp_x = exp(x)
 
-        temp_var = (phi ** 2 + v + exp(x))
+        temp_var = (rating.rd ** 2 + v + exp_x)
 
-        first_term = exp(x) * (rating_improvement ** 2 - temp_var) / (2 * temp_var ** 2)
-        second_term = (x - log(vol ** 2)) / (self.tau ** 2)
+        first_term = exp_x * (rating_improvement ** 2 - temp_var) / (2 * temp_var ** 2)
+
+        # second_term = (x - log(vol ** 2)) / (self.tau ** 2)
+        second_term = (x - log(rating.volatility ** 2))
 
         return first_term - second_term
 
@@ -234,10 +233,8 @@ class Glicko2(object):
         delta_mu = (mu - mu_opp)
 
         if self.is_draw_mode:
-            draw_penalty = self.draw_penalty * max(mu, mu_opp)
-
-            win_probability = 1 / (1 + exp(-g * delta_mu) + exp(self.draw_inclination - delta_mu - draw_penalty))
-            loss_probability = 1 / (1 + exp(g * delta_mu) + exp(self.draw_inclination + delta_mu - draw_penalty))
+            win_probability = 1 / (1 + exp(-g * delta_mu) + exp(self.draw_inclination - delta_mu))
+            loss_probability = 1 / (1 + exp(g * delta_mu) + exp(self.draw_inclination + delta_mu))
             tie_probability = (1 - win_probability - loss_probability)
 
         else:
@@ -246,9 +243,3 @@ class Glicko2(object):
             tie_probability = 0
 
         return win_probability, tie_probability, loss_probability
-
-
-# t1 = Rating(mu=1516)
-# t2 = Rating(mu=1500)
-#
-# print(Glicko2().probabilities(t1, t2, 0))

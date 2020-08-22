@@ -1,0 +1,593 @@
+#,team,rating,league
+1,Bayern München,2206,Germany Bundesliga
+2,Liverpool,2119,England Premier League
+3,PSG,2092,France Ligue 1
+4,Barcelona,2086,Spain Primera División
+5,Manchester City,2082,England Premier League
+6,Real Madrid,2066,Spain Primera División
+7,Atlético Madrid,2045,Spain Primera División
+8,Sevilla,1999,Spain Primera División
+9,Internazionale,1994,Italy Serie A
+10,Chelsea,1993,England Premier League
+11,Juventus,1992,Italy Serie A
+12,Borussia Dortmund,1988,Germany Bundesliga
+13,RB Leipzig,1984,Germany Bundesliga
+14,Manchester United,1979,England Premier League
+15,Shakhtar Donetsk,1966,Ukraine FAVBET Liga
+16,Atalanta,1961,Italy Serie A
+17,Bayer Leverkusen,1944,Germany Bundesliga
+18,Arsenal,1937,England Premier League
+19,Salzburg,1926,Austria Bundesliga
+20,Wolverhampton Wanderers,1921,England Premier League
+21,Real Sociedad,1918,Spain Primera División
+22,Tottenham Hotspur,1917,England Premier League
+23,Villarreal,1913,Spain Primera División
+24,Milan,1910,Italy Serie A
+25,Borussia Mgladbach,1906,Germany Bundesliga
+26,Napoli,1905,Italy Serie A
+27,Granada,1894,Spain Primera División
+28,Lazio,1891,Italy Serie A
+29,Osasuna,1887,Spain Primera División
+30,Porto,1886,Portugal Primeira Liga
+31,Athletic Club,1885,Spain Primera División
+32,Valencia,1884,Spain Primera División
+33,Zenit,1881,Russia Premier League
+34,Getafe,1880,Spain Primera División
+35,Club Brugge,1877,Belgium First Division A
+36,Roma,1876,Italy Serie A
+37,Leicester City,1874,England Premier League
+38,Celtic,1868,Scotland Premiership
+39,Hoffenheim,1864,Germany Bundesliga
+40,Benfica,1863,Portugal Primeira Liga
+41,Olympiakos Piraeus,1853,Greece Super League
+42,Southampton,1852,England Premier League
+43,Burnley,1851,England Premier League
+44,Levante,1850,Spain Primera División
+45,Ajax,1849,Netherlands Eredivisie
+46,Olympique Lyonnais,1849,France Ligue 1
+47,Wolfsburg,1848,Germany Bundesliga
+48,Everton,1847,England Premier League
+49,Olympique Marseille,1839,France Ligue 1
+50,Sheffield United,1838,England Premier League
+51,Eintracht Frankfurt,1832,Germany Bundesliga
+52,Eibar,1827,Spain Primera División
+53,Leganés,1817,Spain Primera División
+54,Young Boys,1812,Switzerland Super League
+55,Real Valladolid,1811,Spain Primera División
+56,Real Betis,1810,Spain Primera División
+57,Celta de Vigo,1808,Spain Primera División
+58,Freiburg,1807,Germany Bundesliga
+59,Newcastle United,1807,England Premier League
+60,Slavia Praha,1806,Czech Republic Fortuna Liga
+61,Lille,1806,France Ligue 1
+62,Deportivo Alavés,1800,Spain Primera División
+63,LASK Linz,1799,Austria Bundesliga
+64,Hertha BSC,1788,Germany Bundesliga
+65,CFR Cluj,1788,Romania Liga I
+66,Crystal Palace,1787,England Premier League
+67,West Ham United,1786,England Premier League
+68,Brighton & Hove Albion,1786,England Premier League
+69,Basel,1785,Switzerland Super League
+70,Rangers,1780,Scotland Premiership
+71,Sassuolo,1779,Italy Serie A
+72,Dinamo Zagreb,1775,Croatia 1. HNL
+73,Sporting CP,1773,Portugal Primeira Liga
+74,Rennes,1772,France Ligue 1
+75,Fiorentina,1769,Italy Serie A
+76,Union Berlin,1767,Germany Bundesliga
+77,Maccabi Tel Aviv,1766,Israel Ligat ha'Al
+78,Mainz 05,1765,Germany Bundesliga
+79,Schalke 04,1764,Germany Bundesliga
+80,Rapid Wien,1764,Austria Bundesliga
+81,Watford,1764,England Premier League
+82,Gent,1763,Belgium First Division A
+83,Sporting Braga,1763,Portugal Primeira Liga
+84,Molde,1761,Norway Eliteserien
+85,Werder Bremen,1759,Germany Bundesliga
+86,İstanbul Başakşehir,1758,Turkey Süper Lig
+87,Leeds United,1755,England Championship
+88,PSV,1754,Netherlands Eredivisie
+89,PAOK,1754,Greece Super League
+90,Lokomotiv Moskva,1752,Russia Premier League
+91,Montpellier,1751,France Ligue 1
+92,Espanyol,1751,Spain Primera División
+93,Sporting Charleroi,1750,Belgium First Division A
+94,AZ,1748,Netherlands Eredivisie
+95,Reims,1744,France Ligue 1
+96,Mallorca,1744,Spain Primera División
+97,Antwerp,1744,Belgium First Division A
+98,Feyenoord,1744,Netherlands Eredivisie
+99,Fortuna Düsseldorf,1742,Germany Bundesliga
+100,Bologna,1742,Italy Serie A
+101,Dynamo Kyiv,1741,Ukraine FAVBET Liga
+102,Augsburg,1741,Germany Bundesliga
+103,Crvena Zvezda,1741,Serbia Super Liga
+104,Viktoria Plzeň,1740,Czech Republic Fortuna Liga
+105,Aston Villa,1739,England Premier League
+106,Hellas Verona,1739,Italy Serie A
+107,Wolfsberger AC,1737,Austria Bundesliga
+108,Nice,1734,France Ligue 1
+109,AFC Bournemouth,1734,England Premier League
+110,Midtjylland,1734,Denmark Superliga
+111,Malmö FF,1730,Sweden Allsvenskan
+112,Köln,1730,Germany Bundesliga
+113,Fulham,1728,England Championship
+114,Udinese,1728,Italy Serie A
+115,Cagliari,1725,Italy Serie A
+116,Slovan Bratislava,1724,Slovakia Super Liga
+117,Sampdoria,1723,Italy Serie A
+118,Huesca,1722,Spain Segunda División
+119,Zorya,1721,Ukraine FAVBET Liga
+120,AEK Athens,1721,Greece Super League
+121,Krasnodar,1720,Russia Premier League
+122,Monaco,1718,France Ligue 1
+123,Bordeaux,1716,France Ligue 1
+124,Parma,1716,Italy Serie A
+125,Strasbourg,1715,France Ligue 1
+126,West Bromwich Albion,1715,England Championship
+127,Trabzonspor,1715,Turkey Süper Lig
+128,Standard Liège,1715,Belgium First Division A
+129,Rayo Vallecano,1713,Spain Segunda División
+130,Girona,1711,Spain Segunda División
+131,Angers,1710,France Ligue 1
+132,Bodø / Glimt,1710,Norway Eliteserien
+133,Torino,1709,Italy Serie A
+134,St. Gallen,1708,Switzerland Super League
+135,Genk,1708,Belgium First Division A
+136,Metz,1706,France Ligue 1
+137,Rijeka,1706,Croatia 1. HNL
+138,Brentford,1701,England Championship
+139,Saint-Étienne,1699,France Ligue 1
+140,APOEL,1698,Cyprus 1. Division
+141,Cádiz,1698,Spain Segunda División
+142,Beşiktaş,1696,Turkey Süper Lig
+143,Genoa,1694,Italy Serie A
+144,Universitatea Craiova,1694,Romania Liga I
+145,Nantes,1691,France Ligue 1
+146,København,1689,Denmark Superliga
+147,Rio Ave,1687,Portugal Primeira Liga
+148,Norrköping,1687,Sweden Allsvenskan
+149,FCS Bucureşti,1687,Romania Liga I
+150,Norwich City,1686,England Premier League
+151,CSKA Moskva,1686,Russia Premier League
+152,Fuenlabrada,1685,Spain Segunda División
+153,AEK Larnaca,1683,Cyprus 1. Division
+154,Brest,1683,France Ligue 1
+155,Anderlecht,1682,Belgium First Division A
+156,Elche,1681,Spain Segunda División
+157,Málaga,1681,Spain Segunda División
+158,Vitória Guimarães,1680,Portugal Primeira Liga
+160,Almería,1677,Spain Segunda División
+161,Real Zaragoza,1677,Spain Segunda División
+162,Galatasaray,1677,Turkey Süper Lig
+163,Sparta Praha,1675,Czech Republic Fortuna Liga
+164,Famalicão,1675,Portugal Primeira Liga
+165,Mirandés,1674,Spain Segunda División
+167,Las Palmas,1670,Spain Segunda División
+168,Omonia Nicosia,1669,Cyprus 1. Division
+169,Cardiff City,1669,England Championship
+170,Sporting Gijón,1668,Spain Segunda División
+171,Lokomotiva Zagreb,1667,Croatia 1. HNL
+172,Partizan,1667,Serbia Super Liga
+173,Dijon,1666,France Ligue 1
+174,Real Oviedo,1664,Spain Segunda División
+175,Tenerife,1663,Spain Segunda División
+177,Anorthosis,1663,Cyprus 1. Division
+178,Servette,1662,Switzerland Super League
+180,Deportivo La Coruña,1661,Spain Segunda División
+181,Alcorcón,1661,Spain Segunda División
+182,Arminia Bielefeld,1661,Germany 2. Bundesliga
+183,Apollon,1660,Cyprus 1. Division
+184,Rostov,1659,Russia Premier League
+185,Lugo,1659,Spain Segunda División
+186,Lecce,1655,Italy Serie A
+187,Albacete,1654,Spain Segunda División
+188,Osijek,1654,Croatia 1. HNL
+189,Swansea City,1653,England Championship
+190,Qarabağ,1652,Azerbaijan Premyer Liqa
+191,Hartberg,1651,Austria Bundesliga
+192,Desna,1650,Ukraine FAVBET Liga
+194,AGF,1649,Denmark Superliga
+195,Ludogorets,1649,Bulgaria First League
+196,Spartak Moskva,1648,Russia Premier League
+197,Astra,1646,Romania Liga I
+198,Derby County,1646,England Championship
+199,Shakhtyor,1645,Belarus Premier League
+200,Austria Wien,1645,Austria Bundesliga
+201,Nîmes,1643,France Ligue 1
+202,Alanyaspor,1641,Turkey Süper Lig
+203,Maccabi Haifa,1641,Israel Ligat ha'Al
+204,Oleksandria,1639,Ukraine FAVBET Liga
+205,Paderborn,1637,Germany Bundesliga
+206,Millwall,1631,England Championship
+207,Mechelen,1630,Belgium First Division A
+208,BATE,1630,Belarus Premier League
+209,Lugano,1630,Switzerland Super League
+210,Nottingham Forest,1630,England Championship
+211,Sivasspor,1627,Turkey Süper Lig
+212,Wigan Athletic,1626,England Championship
+213,Amiens SC,1624,France Ligue 1
+214,Utrecht,1623,Netherlands Eredivisie
+217,Dinamo Moskva,1621,Russia Premier League
+218,Benevento,1620,Italy Serie B
+219,Djurgården,1619,Sweden Allsvenskan
+220,Hajduk Split,1618,Croatia 1. HNL
+221,Viitorul,1617,Romania Liga I
+222,Astana,1617,Kazakhstan Premier League
+223,Rosenborg,1616,Norway Eliteserien
+225,Gil Vicente,1615,Portugal Primeira Liga
+226,Ponferradina,1615,Spain Segunda División
+227,Preston North End,1612,England Championship
+228,Moreirense,1611,Portugal Primeira Liga
+229,Santa Clara,1611,Portugal Primeira Liga
+230,Panathinaikos,1611,Greece Super League
+231,Kortrijk,1610,Belgium First Division A
+233,Fenerbahçe,1609,Turkey Süper Lig
+234,Ufa,1608,Russia Premier League
+235,Botoşani,1607,Romania Liga I
+237,Heidenheim,1605,Germany 2. Bundesliga
+238,Stoke City,1604,England Championship
+239,Numancia,1604,Spain Segunda División
+240,Blackburn Rovers,1602,England Championship
+242,Stuttgart,1602,Germany 2. Bundesliga
+243,AEL,1602,Cyprus 1. Division
+244,Willem II,1601,Netherlands Eredivisie
+245,Brøndby,1601,Denmark Superliga
+246,Bristol City,1601,England Championship
+247,Arsenal Tula,1600,Russia Premier League
+248,Zulte-Waregem,1600,Belgium First Division A
+249,Troyes,1600,France Ligue 2
+250,Paços de Ferreira,1598,Portugal Primeira Liga
+251,Lens,1598,France Ligue 2
+252,Hammarby,1597,Sweden Allsvenskan
+253,Luzern,1596,Switzerland Super League
+256,Extremadura UD,1595,Spain Segunda División
+257,CSKA Sofia,1595,Bulgaria First League
+258,Antalyaspor,1595,Turkey Süper Lig
+259,Hapoel Beer Sheva,1595,Israel Ligat ha'Al
+260,FK Mariupol,1594,Ukraine FAVBET Liga
+261,Rubin Kazan,1593,Russia Premier League
+262,Lech Poznań,1591,Poland Ekstraklasa
+263,Aberdeen,1590,Scotland Premiership
+264,AaB,1590,Denmark Superliga
+265,Marítimo,1590,Portugal Primeira Liga
+266,Sturm Graz,1588,Austria Bundesliga
+267,Vitesse,1586,Netherlands Eredivisie
+269,Zürich,1586,Switzerland Super League
+270,Akhmat Grozny,1586,Russia Premier League
+271,Thun,1585,Switzerland Super League
+272,Sint-Truiden,1584,Belgium First Division A
+273,Gazişehir,1584,Turkey Süper Lig
+274,Lorient,1583,France Ligue 2
+275,Middlesbrough,1583,England Championship
+276,Elfsborg,1582,Sweden Allsvenskan
+277,Beitar Jerusalem,1582,Israel Ligat ha'Al
+278,Gorica,1581,Croatia 1. HNL
+279,Ural,1581,Russia Premier League
+280,Legia Warszawa,1580,Poland Ekstraklasa
+281,Clermont,1579,France Ligue 2
+283,Brescia,1577,Italy Serie A
+284,Darmstadt 98,1577,Germany 2. Bundesliga
+285,Reading,1577,England Championship
+288,Mouscron-Péruwelz,1575,Belgium First Division A
+289,Boavista,1575,Portugal Primeira Liga
+290,SPAL,1575,Italy Serie A
+291,Rheindorf Altach,1575,Austria Bundesliga
+292,Barnsley,1574,England Championship
+293,Sheffield Wednesday,1573,England Championship
+295,St. Pölten,1571,Austria Bundesliga
+296,Queens Park Rangers,1570,England Championship
+297,Sion,1568,Switzerland Super League
+298,Dynamo Brest,1567,Belarus Premier League
+299,Luton Town,1567,England Championship
+301,Kasımpaşa,1566,Turkey Süper Lig
+302,Häcken,1566,Sweden Allsvenskan
+304,Hamburger SV,1566,Germany 2. Bundesliga
+305,Odds,1565,Norway Eliteserien
+306,Gaz Metan Mediaş,1565,Romania Liga I
+307,AIK,1565,Sweden Allsvenskan
+308,Nacional,1562,Portugal Segunda Liga
+309,Slovan Liberec,1562,Czech Republic Fortuna Liga
+310,Ajaccio,1559,France Ligue 2
+312,Dnipro-1,1558,Ukraine FAVBET Liga
+313,Kairat,1557,Kazakhstan Premier League
+315,Huddersfield Town,1555,England Championship
+317,Orenburg,1554,Russia Premier League
+318,Paphos,1553,Cyprus 1. Division
+319,Sochi,1552,Russia Premier League
+320,Crotone,1551,Italy Serie B
+321,Neftçi,1551,Azerbaijan Premyer Liqa
+322,Bochum,1549,Germany 2. Bundesliga
+323,Kristiansund,1548,Norway Eliteserien
+324,Le Havre,1547,France Ligue 2
+325,Lechia Gdańsk,1547,Poland Ekstraklasa
+326,Portimonense,1546,Portugal Primeira Liga
+327,Bačka Topola,1546,Serbia Super Liga
+328,Nordsjælland,1545,Denmark Superliga
+329,Hannover 96,1545,Germany 2. Bundesliga
+330,Belenenses,1545,Portugal Primeira Liga
+332,Bnei Yehuda,1544,Israel Ligat ha'Al
+333,Konyaspor,1543,Turkey Süper Lig
+335,Birmingham City,1542,England Championship
+336,Racing Santander,1542,Spain Segunda División
+337,Piast Gliwice,1541,Poland Ekstraklasa
+338,Bohemians 1905,1541,Czech Republic Fortuna Liga
+339,Jablonec,1540,Czech Republic Fortuna Liga
+340,Stabæk,1540,Norway Eliteserien
+341,Tondela,1540,Portugal Primeira Liga
+342,Vålerenga,1539,Norway Eliteserien
+343,Hibernian,1539,Scotland Premiership
+344,Žilina,1538,Slovakia Super Liga
+345,Vitória Setúbal,1538,Portugal Primeira Liga
+347,Vojvodina,1535,Serbia Super Liga
+348,Mattersburg,1534,Austria Bundesliga
+349,KAS Eupen,1534,Belgium First Division A
+353,Groningen,1530,Netherlands Eredivisie
+354,Göztepe,1529,Turkey Süper Lig
+355,Haugesund,1528,Norway Eliteserien
+356,Krylya Sovetov,1527,Russia Premier League
+357,Admira,1526,Austria Bundesliga
+358,Motherwell,1526,Scotland Premiership
+359,Neuchâtel Xamax,1525,Switzerland Super League
+360,St. Johnstone,1524,Scotland Premiership
+361,Khimki,1524,Russia FNL
+362,Baník Ostrava,1524,Czech Republic Fortuna Liga
+363,Kolos Kovalivka,1524,Ukraine FAVBET Liga
+364,Livingston,1524,Scotland Premiership
+365,Tobol,1524,Kazakhstan Premier League
+366,SønderjyskE,1523,Denmark Superliga
+367,OB,1523,Denmark Superliga
+368,DAC,1522,Slovakia Super Liga
+369,Charlton Athletic,1522,England Championship
+372,Mladá Boleslav,1522,Czech Republic Fortuna Liga
+373,Vorskla,1522,Ukraine FAVBET Liga
+374,Nea Salamis,1522,Cyprus 1. Division
+375,Hermannstadt,1522,Romania Liga I
+376,Heracles,1522,Netherlands Eredivisie
+381,Sepsi,1519,Romania Liga I
+383,Aris,1519,Greece Super League
+386,Olympiakos,1517,Cyprus 1. Division
+388,Radnički Niš,1516,Serbia Super Liga
+389,Brann,1516,Norway Eliteserien
+394,Toulouse,1513,France Ligue 1
+395,Sandhausen,1512,Germany 2. Bundesliga
+396,Randers,1512,Denmark Superliga
+397,Jahn Regensburg,1511,Germany 2. Bundesliga
+398,Enosis,1511,Cyprus 1. Division
+399,Holstein Kiel,1511,Germany 2. Bundesliga
+400,Heerenveen,1511,Netherlands Eredivisie
+401,Neman Grodno,1510,Belarus Premier League
+402,Erzgebirge Aue,1510,Germany 2. Bundesliga
+403,Slaven Koprivnica,1510,Croatia 1. HNL
+404,Guingamp,1509,France Ligue 2
+405,Gençlerbirliği,1509,Turkey Süper Lig
+406,Greuther Fürth,1509,Germany 2. Bundesliga
+407,Ankaragücü,1508,Turkey Süper Lig
+408,Feirense,1507,Portugal Segunda Liga
+411,Viking,1506,Norway Eliteserien
+412,Horsens,1506,Denmark Superliga
+413,Kayserispor,1505,Turkey Süper Lig
+414,Hapoel Tel Aviv,1505,Israel Ligat ha'Al
+415,Chertanovo,1504,Russia FNL
+416,Emmen,1504,Netherlands Eredivisie
+417,WSG Swarovski Tirol,1503,Austria Bundesliga
+418,Ordabasy,1502,Kazakhstan Premier League
+419,Jagiellonia Białystok,1502,Poland Ekstraklasa
+420,Hapoel Haifa,1502,Israel Ligat ha'Al
+421,Voluntari,1502,Romania Liga I
+422,Dinamo Bucureşti,1502,Romania Liga I
+424,Kilmarnock,1500,Scotland Premiership
+425,Tambov,1500,Russia Premier League
+426,Karlsruher SC,1499,Germany 2. Bundesliga
+427,Valenciennes,1499,France Ligue 2
+428,Pogoń Szczecin,1498,Poland Ekstraklasa
+429,Caen,1498,France Ligue 2
+430,Rizespor,1498,Turkey Süper Lig
+432,Cercle Brugge,1497,Belgium First Division A
+433,Varaždin,1497,Croatia 1. HNL
+434,Dinamo Minsk,1496,Belarus Premier League
+435,Osnabrück,1495,Germany 2. Bundesliga
+436,Academica Clinceni,1495,Romania Liga I
+437,Denizlispor,1494,Turkey Süper Lig
+438,Levski Sofia,1494,Bulgaria First League
+440,KV Oostende,1492,Belgium First Division A
+442,Hull City,1492,England Championship
+443,Cracovia Kraków,1492,Poland Ekstraklasa
+444,IFK Göteborg,1491,Sweden Allsvenskan
+445,Rotor Volgograd,1491,Russia FNL
+446,Olimpik Donetsk,1491,Ukraine FAVBET Liga
+447,St. Pauli,1491,Germany 2. Bundesliga
+449,Slavia Sofia,1490,Bulgaria First League
+450,Sparta Rotterdam,1490,Netherlands Eredivisie
+451,Strømsgodset,1490,Norway Eliteserien
+452,Yeni Malatyaspor,1489,Turkey Süper Lig
+453,Spezia,1489,Italy Serie B
+455,Farense,1488,Portugal Segunda Liga
+457,Grenoble Foot 38,1488,France Ligue 2
+460,Torpedo Zhodino,1486,Belarus Premier League
+461,Châteauroux,1486,France Ligue 2
+463,Nürnberg,1486,Germany 2. Bundesliga
+464,Cukaricki,1485,Serbia Super Liga
+465,Atromitos,1484,Greece Super League
+466,Chievo,1483,Italy Serie B
+467,Ružomberok,1483,Slovakia Super Liga
+468,Zagłębie Lubin,1483,Poland Ekstraklasa
+470,Asteras Tripolis,1481,Greece Super League
+474,Slovácko,1479,Czech Republic Fortuna Liga
+475,Sigma Olomouc,1478,Czech Republic Fortuna Liga
+476,PEC Zwolle,1478,Netherlands Eredivisie
+477,Waasland-Beveren,1476,Belgium First Division A
+478,Górnik Zabrze,1475,Poland Ekstraklasa
+481,Pordenone,1475,Italy Serie B
+485,Nancy,1474,France Ligue 2
+486,Zhetysu,1473,Kazakhstan Premier League
+487,Paris,1473,France Ligue 2
+488,VVV,1472,Netherlands Eredivisie
+489,Ross County,1471,Scotland Premiership
+490,Empoli,1471,Italy Serie B
+491,Neftekhimik,1470,Russia FNL
+492,České Budějovice,1470,Czech Republic Fortuna Liga
+493,Cremonese,1470,Italy Serie B
+494,Śląsk Wrocław,1470,Poland Ekstraklasa
+495,Pisa,1470,Italy Serie B
+497,Fortuna Sittard,1468,Netherlands Eredivisie
+498,Beroe,1468,Bulgaria First League
+499,Cittadella,1467,Italy Serie B
+501,Frosinone,1466,Italy Serie B
+502,Auxerre,1466,France Ligue 2
+507,Chambly,1461,France Ligue 2
+508,Lokomotiv Plovdiv,1460,Bulgaria First League
+510,Sirius,1459,Sweden Allsvenskan
+515,Vitebsk,1457,Belarus Premier League
+516,Maccabi Netanya,1457,Israel Ligat ha'Al
+517,Mafra,1456,Portugal Segunda Liga
+518,Isloch,1456,Belarus Premier League
+522,Sarpsborg 08,1455,Norway Eliteserien
+523,Ashdod,1454,Israel Ligat ha'Al
+524,Raków Częstochowa,1454,Poland Ekstraklasa
+525,Torpedo Moskva,1454,Russia FNL
+527,Sochaux,1453,France Ligue 2
+529,Teplice,1452,Czech Republic Fortuna Liga
+531,Wisła Płock,1452,Poland Ekstraklasa
+532,Ethnikos Achnas,1452,Cyprus 1. Division
+534,Wehen Wiesbaden,1449,Germany 2. Bundesliga
+535,Lamia,1449,Greece Super League
+538,Académica,1448,Portugal Segunda Liga
+539,Chaves,1448,Portugal Segunda Liga
+542,Dynamo Dresden,1447,Germany 2. Bundesliga
+544,Twente,1445,Netherlands Eredivisie
+546,ADO Den Haag,1445,Netherlands Eredivisie
+548,Academico Viseu,1445,Portugal Segunda Liga
+549,Lyngby,1445,Denmark Superliga
+550,Venezia,1444,Italy Serie B
+552,Trapani,1443,Italy Serie B
+553,Hapoel Kfar Saba,1443,Israel Ligat ha'Al
+554,Örebro,1443,Sweden Allsvenskan
+556,Estoril,1442,Portugal Segunda Liga
+557,Hearts,1442,Scotland Premiership
+558,Hapoel Eran Hadera,1442,Israel Ligat ha'Al
+561,Shinnik,1441,Russia FNL
+563,St. Mirren,1441,Scotland Premiership
+564,Rodez,1440,France Ligue 2
+570,Karpaty,1439,Ukraine FAVBET Liga
+571,CSM Iaşi,1439,Romania Liga I
+574,Energetyk-BGU,1438,Belarus Premier League
+575,Lviv,1438,Ukraine FAVBET Liga
+578,Ruh Brest,1437,Belarus Premier League
+584,Varzim,1436,Portugal Segunda Liga
+585,Virtus Entella,1436,Italy Serie B
+586,Cosenza,1435,Italy Serie B
+588,Cherno More,1435,Bulgaria First League
+591,Mladost Lučani,1434,Serbia Super Liga
+595,Salernitana,1433,Italy Serie B
+598,Wisła Kraków,1431,Poland Ekstraklasa
+603,Spartak Trnava,1429,Slovakia Super Liga
+604,Hobro,1428,Denmark Superliga
+605,Slavia,1428,Belarus Premier League
+609,Silkeborg,1425,Denmark Superliga
+610,Larissa,1424,Greece Super League
+611,Spartak Subotica,1424,Serbia Super Liga
+612,Perugia,1424,Italy Serie B
+614,Chindia Târgovişte,1423,Romania Liga I
+615,Varberg,1423,Sweden Allsvenskan
+623,Hamilton Academical,1418,Scotland Premiership
+625,Baltika,1418,Russia FNL
+627,Tom Tomsk,1417,Russia FNL
+628,OFI,1417,Greece Super League
+629,SKA Khabarovsk,1417,Russia FNL
+632,Panaitolikos,1415,Greece Super League
+634,Pescara,1415,Italy Serie B
+635,Ascoli,1415,Italy Serie B
+638,Leixões,1413,Portugal Segunda Liga
+641,Sektzia Nes Tziona,1411,Israel Ligat ha'Al
+642,Zlín,1411,Czech Republic Fortuna Liga
+643,Kaisar,1411,Kazakhstan Premier League
+644,Desportivo Aves,1410,Portugal Primeira Liga
+646,Esbjerg,1409,Denmark Superliga
+647,Arka Gdynia,1409,Poland Ekstraklasa
+648,Panionios,1408,Greece Super League
+650,Doxa,1407,Cyprus 1. Division
+653,Trenčín,1406,Slovakia Super Liga
+654,Mjøndalen,1406,Norway Eliteserien
+657,Ironi Kiryat Shmona,1405,Israel Ligat ha'Al
+658,Niort,1405,France Ligue 2
+660,UD Oliveirense,1405,Portugal Segunda Liga
+663,Östersunds FK,1404,Sweden Allsvenskan
+666,Xanthi,1402,Greece Super League
+667,Botev Plovdiv,1401,Bulgaria First League
+677,Sandefjord,1399,Norway Eliteserien
+680,Le Mans,1398,France Ligue 2
+683,Keshla FK,1396,Azerbaijan Premyer Liqa
+684,Voždovac,1396,Serbia Super Liga
+685,Zemplín Michalovce,1396,Slovakia Super Liga
+690,Nizhny Novgorod,1394,Russia FNL
+692,Gorodeya,1394,Belarus Premier League
+694,Sumqayıt,1393,Azerbaijan Premyer Liqa
+700,Mjällby,1391,Sweden Allsvenskan
+701,Start,1391,Norway Eliteserien
+705,Opava,1389,Czech Republic Fortuna Liga
+713,Minsk,1387,Belarus Premier League
+716,Juve Stabia,1386,Italy Serie B
+717,Sporting Covilhã,1386,Portugal Segunda Liga
+723,Benfica II,1384,Portugal Segunda Liga
+730,Qabala,1381,Azerbaijan Premyer Liqa
+731,Penafiel,1381,Portugal Segunda Liga
+733,Istra 1961,1381,Croatia 1. HNL
+734,Orléans,1380,France Ligue 2
+736,Porto II,1380,Portugal Segunda Liga
+740,Shakhter Karagandy,1379,Kazakhstan Premier League
+741,Zira,1378,Azerbaijan Premyer Liqa
+743,Karviná,1378,Czech Republic Fortuna Liga
+744,Chayka Peschanokopskoye,1378,Russia FNL
+752,Příbram,1376,Czech Republic Fortuna Liga
+753,Aalesund,1376,Norway Eliteserien
+755,Korona Kielce,1374,Poland Ekstraklasa
+757,Helsingborg,1374,Sweden Allsvenskan
+765,Slutsk,1371,Belarus Premier League
+770,Volos NFC,1369,Greece Super League
+785,Kyzyl-Zhar,1364,Kazakhstan Premier League
+813,Napredak,1355,Serbia Super Liga
+814,Zlaté Moravce,1355,Slovakia Super Liga
+818,RKC Waalwijk,1354,Netherlands Eredivisie
+823,Taraz,1352,Kazakhstan Premier League
+826,Avangard Kursk,1350,Russia FNL
+829,Sebail,1346,Azerbaijan Premyer Liqa
+837,Smolevichy-STI,1342,Belarus Premier League
+838,Yenisey,1341,Russia FNL
+840,Falkenberg,1341,Sweden Allsvenskan
+843,Kalmar,1340,Sweden Allsvenskan
+846,Irtysh,1339,Kazakhstan Premier League
+850,Krasnodar II,1335,Russia FNL
+854,Armavir,1334,Russia FNL
+856,Sereď,1332,Slovakia Super Liga
+858,Inter Zaprešić,1330,Croatia 1. HNL
+859,Vilafranquense,1329,Portugal Segunda Liga
+864,Sabah,1325,Azerbaijan Premyer Liqa
+865,Hapoel Raanana,1324,Israel Ligat ha'Al
+868,Etar,1323,Bulgaria First League
+869,Pohronie,1323,Slovakia Super Liga
+870,Senica,1322,Slovakia Super Liga
+875,Radnik Surdulica,1320,Serbia Super Liga
+876,Luch Vladivostok,1319,Russia FNL
+879,Arda,1319,Bulgaria First League
+880,Okzhetpes,1317,Kazakhstan Premier League
+888,Proleter Novi Sad,1311,Serbia Super Liga
+890,Nitra,1308,Slovakia Super Liga
+892,Kaspyi,1305,Kazakhstan Premier League
+893,Javor Ivanjica,1305,Serbia Super Liga
+898,Botev Vratsa,1299,Bulgaria First League
+899,Łódzki KS,1296,Poland Ekstraklasa
+902,Cova da Piedade,1293,Portugal Segunda Liga
+905,Belshina,1282,Belarus Premier League
+907,Inđija,1278,Serbia Super Liga
+912,Livorno,1273,Italy Serie B
+913,Spartak II,1272,Russia FNL
+914,Tsarsko selo,1269,Bulgaria First League
+926,Dunav 2010,1247,Bulgaria First League
+928,Tekstilshchik,1247,Russia FNL
+929,Mordovia Saransk,1246,Russia FNL
+933,Fakel,1235,Russia FNL
+941,Casa Pia,1213,Portugal Segunda Liga
+946,Mačva Šabac,1189,Serbia Super Liga
+948,Rad Beograd,1173,Serbia Super Liga
+951,Vitosha Bistritsa,1089,Bulgaria First League
