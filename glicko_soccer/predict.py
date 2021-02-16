@@ -17,7 +17,7 @@ class Predict(object):
         self.avg_win_score_diff = avg_win_score_diff
 
     @staticmethod
-    def _current_standings(matches: pd.DataFrame) -> Tuple[dict, dict, dict]:
+    def current_standings(matches: pd.DataFrame) -> Tuple[dict, dict, dict]:
         """
             Calculate points, goal difference, a number of played matches in previous games.
         """
@@ -63,7 +63,7 @@ class Predict(object):
         ratings = GlickoSoccer().rate_teams(played_matches, ratings, draw_inclination, home_advantage)
 
         # calculate points in played matches
-        points, goal_diff, matches_played = self._current_standings(played_matches)
+        points, goal_diff, matches_played = self.current_standings(played_matches)
 
         teams = played_matches['home_team'].unique()
 
