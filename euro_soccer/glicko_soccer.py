@@ -9,7 +9,7 @@ from glicko2 import Glicko2, Rating
 from utils.metrics import three_outcomes_log_loss
 
 
-class EuroSoccer(object):
+class GlickoSoccer(object):
 
     def __init__(self, is_draw_mode=True, init_mu=1500, init_rd=120, update_rd=30, lift_update_mu=0, lift_update_rd=30,
                  home_advantage=30, draw_inclination=-0.15, cup_penalty=0, new_team_update_mu=-20):
@@ -24,94 +24,112 @@ class EuroSoccer(object):
         self.cup_penalty = cup_penalty
         self.new_team_update_mu = new_team_update_mu
 
-        self.first_leagues = [
-            'Austria Bundesliga',
-            'Azerbaijan Premyer Liqa',
-            'Belarus Premier League',
-            'Belgium First Division A',
-            'Bulgaria First League',
-            'Croatia 1. HNL',
-            'Cyprus 1. Division',
-            'Czech Republic Fortuna Liga',
-            'Denmark Superliga',
-            'England Premier League',
-            'France Ligue 1',
-            'Germany Bundesliga',
-            'Greece Super League',
-            "Israel Ligat ha'Al",
-            'Italy Serie A',
-            'Kazakhstan Premier League',
-            'Netherlands Eredivisie',
-            'Norway Eliteserien',
-            'Poland Ekstraklasa',
-            'Portugal Primeira Liga',
-            'Romania Liga I',
-            'Russia Premier League',
-            'Scotland Premiership',
-            'Serbia Super Liga',
-            'Slovakia Super Liga',
-            'Spain Primera División',
-            'Sweden Allsvenskan',
-            'Switzerland Super League',
-            'Turkey Süper Lig',
-            'Ukraine FAVBET Liga',
-        ]
-        self.second_leagues = [
-            'England Championship',
-            'France Ligue 2',
-            'Germany 2. Bundesliga',
-            'Italy Serie B',
-            'Portugal Segunda Liga',
-            'Russia FNL',
-            'Spain Segunda División',
-        ]
-        self.championships = (self.first_leagues + self.second_leagues)
-        self.cups = [
-            'Austria Cup',
-            'Azerbaijan Cup',
-            'Belarus Cup',
-            'Belgium Cup',
-            'Bulgaria Cup',
-            'Croatia Cup',
-            'Cyprus Cup',
-            'Czech Republic Cup',
-            'Denmark DBU Pokalen',
-            'England FA Cup',
-            'France Coupe de France',
-            'Germany DFB Pokal',
-            'Greece Cup',
-            'Israel State Cup',
-            'Italy Coppa Italia',
-            'Kazakhstan Cup',
-            'Netherlands KNVB Beker',
-            'Norway Norway Cup',
-            'Poland Cup',
-            'Portugal Taça de Portugal',
-            'Romania Cupa României',
-            'Russia Cup',
-            'Scotland FA Cup',
-            'Serbia Cup',
-            'Slovakia Cup',
-            'Spain Copa del Rey',
-            'Sweden Svenska Cupen',
-            'Switzerland Schweizer Pokal',
-            'Turkey Cup',
-            'Ukraine Cup'
-        ]
-        self.euro_cups = [
-            'Europe UEFA Champions League',
-            'Europe UEFA Europa League',
-        ]
-        self.playoff = [
-            'Germany Play-offs 1/2',
-            'France Play-offs 1/2',
-            'Russia Play-offs 1/2',
-            'Portugal Play-offs 1/2',
-        ]
-        self.top_leagues = ['England Premier League', 'France Ligue 1',
-                            'Germany Bundesliga', 'Italy Serie A',
-                            'Portugal Primeira Liga', 'Russia Premier League',
-                            'Spain Primera División', ]
+        self.first_leagues = {'Albania. Superliga',
+                              'Andorra. Primera Divisió',
+                              'Armenia. Premier League',
+                              'Austria. Admiral Bundesliga',
+                              'Azerbaijan. Premier League',
+                              'Belarus. Vysshaya Liga',
+                              'Belgium. Jupiler Pro League',
+                              'Bosnia And Herzegovina. Premier League',
+                              'Bulgaria. Parva liga',
+                              'Croatia. 1. HNL',
+                              'Cyprus. First Division',
+                              'Czech Republic. 1. Liga',
+                              'Denmark. Superliga',
+                              'England. Premier League',
+                              'Estonia. Meistriliiga',
+                              'Faroe Islands. Premier League',
+                              'Finland. Veikkausliiga',
+                              'France. Ligue 1',
+                              'Georgia. Crystalbet Erovnuli Liga',
+                              'Germany. Bundesliga',
+                              'Gibraltar. National League',
+                              'Greece. Super League',
+                              'Hungary. OTP Bank Liga',
+                              'Iceland. Pepsideild',
+                              'Ireland. Premier Division',
+                              "Israel. Ligat ha'Al",
+                              'Italy. Serie A',
+                              'Kazakhstan. Premier League',
+                              'Kosovo. Superliga',
+                              'Latvia. Optibet Virsliga',
+                              'Lithuania. A Lyga',
+                              'Luxembourg. National Division',
+                              'Malta. Premier League',
+                              'Moldova. Divizia Nationala',
+                              'Montenegro. Prva Crnogorska Liga',
+                              'Netherlands. Eredivisie',
+                              'North Macedonia. 1. MFL',
+                              'Northern Ireland. NIFL Premiership',
+                              'Norway. Eliteserien',
+                              'Poland. Ekstraklasa',
+                              'Portugal. Primeira Liga',
+                              'Romania. Liga 1',
+                              'Russia. Premier League',
+                              'San Marino. Campionato Sammarinese',
+                              'Scotland. Premiership',
+                              'Serbia. Super Liga',
+                              'Slovakia. Fortuna liga',
+                              'Slovenia. Prva liga',
+                              'Spain. LaLiga',
+                              'Sweden. Allsvenskan',
+                              'Switzerland. Super League',
+                              'Turkey. Super Lig',
+                              'Ukraine. Premier League',
+                              'Uzbekistan. Super League',
+                              'Wales. Cymru Premier'}
+        self.second_leagues = {}
+        self.championships = self.first_leagues.union(self.second_leagues)
+        self.cups = {'Wales. FA Cup',
+                     'Northern Ireland. Irish Cup',
+                     'Andorra. Andorra Cup',
+                     'Israel. State Cup',
+                     'Azerbaijan. Azerbaijan Cup',
+                     'Serbia. Serbian Cup',
+                     'Montenegro. Montenegrin Cup',
+                     'Norway. NM Cup',
+                     'England. EFL Cup',
+                     'Cyprus. Cyprus Cup',
+                     'Greece. Greek Cup',
+                     'Gibraltar. Gibraltar Cup',
+                     'Turkey. Turkish Cup',
+                     'Belgium. Belgian Cup',
+                     'Switzerland. Swiss Cup',
+                     'Scotland. Scottish Cup',
+                     'Albania. Albanian Cup',
+                     'Croatia. Croatian Cup',
+                     'Finland. Suomen Cup',
+                     'Georgia. Georgian Cup',
+                     'Denmark. Landspokal Cup',
+                     'Luxembourg. Luxembourg Cup',
+                     'Sweden. Svenska Cupen',
+                     'Russia. Russian Cup',
+                     'Hungary. Hungarian Cup',
+                     'Poland. Polish Cup',
+                     'Bosnia And Herzegovina. Bosnia and Herzegovina Cup',
+                     'Bulgaria. Bulgarian Cup',
+                     'Armenia. Armenian Cup',
+                     'North Macedonia. Macedonian Cup',
+                     'Belarus. Belarusian Cup',
+                     'Uzbekistan. Uzbekistan Cup',
+                     'Moldova. Moldovan Cup',
+                     'Romania. Romanian Cup',
+                     'Ukraine. Ukrainian Cup',
+                     'Czech Republic. MOL Cup',
+                     'Slovenia. Slovenian Cup',
+                     'Ireland. FAI Cup',
+                     'Faroe Islands. Faroe Islands Cup',
+                     'Latvia. Latvian Cup',
+                     'Slovakia. Slovak Cup',
+                     'Austria. OFB Cup',
+                     'Lithuania. Lithuanian Cup',
+                     'Kazakhstan. Kazakhstan Cup',
+                     'Estonia. Estonian Cup',
+                     'Iceland. Icelandic Cup',
+                     'Kosovo. Kosovar Cup'}
+        self.euro_cups = {'Champions League', 'Europa League'}  # !!!!
+        self.top_leagues = {}
 
     def _preprocessing(self, results: pd.DataFrame) -> pd.DataFrame:
         """"""
@@ -162,8 +180,7 @@ class EuroSoccer(object):
         results = results.loc[results['tournament'].isin(self.first_leagues)
                               | results['tournament'].isin(self.second_leagues)
                               | results['tournament'].isin(self.cups)
-                              | results['tournament'].isin(self.euro_cups)
-                              | results['tournament'].isin(self.playoff)]
+                              | results['tournament'].isin(self.euro_cups)]
 
         conditions = [(results['home_score'] > results['away_score']),
                       (results['home_score'] == results['away_score']),
@@ -187,6 +204,13 @@ class EuroSoccer(object):
                         .drop_duplicates(['home_team']))
 
         team_leagues = dict(zip(team_leagues['home_team'], team_leagues['tournament']))
+
+        away_team_leagues = (results
+                             .loc[results['tournament'].isin(self.championships)
+                                  & (results['season'] == season), ['away_team', 'tournament']]
+                             .drop_duplicates(['away_team']))
+
+        team_leagues.update(dict(zip(away_team_leagues['away_team'], away_team_leagues['tournament'])))
 
         return team_leagues
 
@@ -297,6 +321,51 @@ class EuroSoccer(object):
 
         first_seasons = dict(zip(first_seasons['tournament'], first_seasons['season']))
         return first_seasons
+
+    def _update_ratings_indexes(self, results: pd.DataFrame) -> Tuple[dict, dict, dict]:
+        """"""
+        no_cups = results.loc[~results['tournament'].isin(self.cups)]
+
+        no_cups = pd.concat([no_cups.loc[:, ['date', 'index', 'home_team', 'season', 'tournament']]
+                            .rename(columns={'home_team': 'team'}),
+                             no_cups.loc[:, ['date', 'index', 'away_team', 'season', 'tournament']]
+                            .rename(columns={'away_team': 'team'})])
+
+        no_cups = (no_cups
+                   .sort_values(['team', 'date'])
+                   .drop_duplicates(['team', 'season'], keep='first'))
+
+        # teams missed previous season
+        # remove first seasons too
+        missed_previous_season = (no_cups
+                                  .loc[(no_cups['season'] != no_cups['season'].shift() + 1)
+                                       & (no_cups['team'] == no_cups['team'].shift())]
+                                  .groupby(['team'])
+                                  ['index']
+                                  .apply(set)
+                                  .to_dict())
+
+        # teams changed league
+        changed_league = (no_cups
+                          .loc[(no_cups['season'] == no_cups['season'].shift() + 1)
+                               & (no_cups['tournament'] != no_cups['tournament'].shift())
+                               & (no_cups['team'] == no_cups['team'].shift())]
+                          .groupby(['team'])
+                          ['index']
+                          .apply(set)
+                          .to_dict())
+
+        # the same league
+        same_league = (no_cups
+                       .loc[(no_cups['season'] == no_cups['season'].shift() + 1)
+                            & (no_cups['tournament'] == no_cups['tournament'].shift())
+                            & (no_cups['team'] == no_cups['team'].shift())]
+                       .groupby(['team'])
+                       ['index']
+                       .apply(set)
+                       .to_dict())
+
+        return missed_previous_season, changed_league, same_league
 
     def _season_update_rating(self, ratings: dict, results: pd.DataFrame, season: int, league_params: dict,
                               first_league_seasons: dict) -> dict:
@@ -514,6 +583,9 @@ class EuroSoccer(object):
 
     def rate_teams(self, results: pd.DataFrame, league_params: dict) -> dict:
         """"""
+        # !!!!!!!!!!!!
+        avg_scoring = 2.5
+
         seasons = sorted(results['season'].unique())
         min_season = min(seasons)
 
@@ -563,7 +635,8 @@ class EuroSoccer(object):
                 home_rating, away_rating = ratings[home_team], ratings[away_team]
 
                 # update team ratings
-                ratings[home_team], ratings[away_team] = glicko.rate(home_rating, away_rating, home_advantage, outcome)
+                ratings[home_team], ratings[away_team] = glicko.rate(home_rating, away_rating, home_advantage, outcome,
+                                                                     avg_scoring)
 
         return ratings
 
