@@ -1,17 +1,14 @@
 from math import exp, log, sqrt, pi
 from typing import Tuple
 
+from dataclasses import dataclass
 
-class Rating(object):
 
-    def __init__(self, mu=1500., rd=200., volatility=0.06):
-        self.mu = mu
-        self.rd = rd
-        self.volatility = volatility
-
-    def __repr__(self):
-        args = (self.mu, self.rd, self.volatility)
-        return '(mu=%.3f, rd=%.3f, volatility=%.3f)' % args
+@dataclass
+class Rating:
+    mu: float = 1500.
+    rd: float = 200.
+    volatility: float = 0.06
 
 
 class Glicko2(object):
@@ -58,7 +55,7 @@ class Glicko2(object):
 
         delta_mu = g * (mu - mu_opp)
 
-        draw = self.draw_inclination + (1 / (1 + avg_scoring)) ** 2
+        draw = self.draw_inclination + (1 / (1 + 2 * avg_scoring)) ** 2
 
         win_probability = 1 / (1 + exp(-delta_mu) + exp(draw - delta_mu))
         loss_probability = 1 / (1 + exp(delta_mu) + exp(draw + delta_mu))
@@ -86,7 +83,8 @@ class Glicko2(object):
         delta = (v * g * (outcome - expected_score))
         return delta
 
-    def f(self, rating_improvement: float, v: float, rating: Rating, x: float) -> float:
+    @staticmethod
+    def f(rating_improvement: float, v: float, rating: Rating, x: float) -> float:
         """
             Used in step 5.
         """

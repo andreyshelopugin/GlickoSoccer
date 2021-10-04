@@ -55,13 +55,6 @@ class DataPreprocessor(object):
 
         matches = matches.sort_values(['date']).reset_index(drop=True)
 
-        conditions = [(matches['home_score'] > matches['away_score']),
-                      (matches['home_score'] == matches['away_score']),
-                      (matches['home_score'] < matches['away_score'])]
-
-        outcomes = ['H', 'D', 'A']
-        matches['outcome'] = np.select(conditions, outcomes)
-
         matches = self._rename_teams(matches)
 
         matches = matches.rename(columns={'league': 'tournament'})
