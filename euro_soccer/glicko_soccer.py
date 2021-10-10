@@ -7,12 +7,13 @@ import pandas as pd
 
 from glicko2 import Glicko2, Rating
 from utils.metrics import three_outcomes_log_loss
+from scipy.stats import skellam
 
 
 class GlickoSoccer(object):
 
-    def __init__(self, is_draw_mode=True, init_mu=1500, init_rd=120, update_rd=30, lift_update_mu=0,
-                 home_advantage=30, draw_inclination=-0.22, cup_penalty=10, new_team_update_mu=-20):
+    def __init__(self, is_draw_mode=True, init_mu=1500, init_rd=120, update_rd=27, lift_update_mu=0,
+                 home_advantage=27, draw_inclination=-0.325, cup_penalty=10, new_team_update_mu=-20):
         self.is_draw_mode = is_draw_mode
         self.init_mu = init_mu
         self.init_rd = init_rd
@@ -49,45 +50,47 @@ class GlickoSoccer(object):
 
         results = self._remove_matches_with_unknown_team(results)
 
-        results = self._average_scoring(results)
+        results = self.draw_probability(results)
+
+        results = self._get_finals(results)
 
         results = results.drop(columns=['home_score', 'away_score']).sort_values(['date'])
 
         return results
 
-    def _average_scoring(self, results: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def draw_probability(results: pd.DataFrame) -> pd.DataFrame:
         """"""
+        home_score = (results
+                      .sort_values(['home_team', 'date'], ascending=[True, True])
+                      .groupby(['home_team'], sort=False)
+                      ['home_score']
+                      .shift()
+                      .rolling(10, min_periods=5)
+                      .mean()
+                      .to_dict())
 
-        results['total'] = (results['home_score'] + results['away_score'])
-
-        goals = pd.concat([results.loc[:, ['index', 'home_team', 'total', 'date']]
-                          .rename(columns={'home_team': 'team'}),
-
-                           results.loc[:, ['index', 'away_team', 'total', 'date']]
-                          .rename(columns={'away_team': 'team'})])
-
-        mean = (goals
-                .sort_values(['team', 'date'], ascending=[True, True])
-                .groupby(['team'], sort=False)
-                ['total']
-                .shift()
-                .rolling(10, min_periods=3)
-                .mean()
-                .reset_index())
-
-        mean['total'] = mean['total'].fillna(2.5)
-
-        mean = (mean
-                .groupby(['index'])
-                ['total']
-                .mean()
-                .to_dict())
+        away_score = (results
+                      .sort_values(['away_team', 'date'], ascending=[True, True])
+                      .groupby(['away_team'], sort=False)
+                      ['away_score']
+                      .shift()
+                      .rolling(10, min_periods=5)
+                      .mean()
+                      .to_dict())
 
         results = results.reset_index()
 
-        results['avg_scoring'] = results['level_0'].map(mean)
+        results['avg_home_score'] = results['level_0'].map(home_score).fillna(results['home_score'].mean())
+        results['avg_away_score'] = results['level_0'].map(away_score).fillna(results['away_score'].mean())
 
-        results = results.drop(columns=['total', 'level_0'])
+        results = results.drop(columns=['level_0'])
+
+        results['draw_probability'] = (results
+                                       .loc[:, ['avg_home_score', 'avg_away_score']]
+                                       .apply(lambda df: skellam.pmf(0, df[0], df[1]).sum(), axis=1))
+
+        results['draw_probability'] = results['draw_probability'].fillna(results['draw_probability'].mean())
 
         return results
 
@@ -115,6 +118,25 @@ class GlickoSoccer(object):
                                    & results['away_team'].isin(known_teams))
 
             results = results.loc[(results['season'] != season) | is_both_teams_known]
+
+        return results
+
+    @staticmethod
+    def _get_finals(results: pd.DataFrame) -> pd.DataFrame:
+        """Get final matches for neutral field games detection"""
+
+        max_season = results['season'].max()
+
+        finals = (results
+                  .loc[(results['season'] != max_season) & (results['tournament_type'] == 3)]
+                  .sort_values(['tournament', 'season', 'date'])
+                  .drop_duplicates(['season', 'tournament'], keep='last')
+                  ['index']
+                  .unique())
+
+        results['tournament_type'] = np.where(results['index'].isin(finals),
+                                              4,
+                                              results['tournament_type'])
 
         return results
 
@@ -165,6 +187,10 @@ class GlickoSoccer(object):
             for team, params in team_params[season].items():
                 if team not in ratings:
                     ratings[team] = Rating(mu=params['init_mu'], rd=params['init_rd'])
+
+        # normalization as way for fighting with inflation
+        mean_rating = np.mean([rating.mu for _, rating in ratings.items()])
+        ratings = {team: Rating(mu=1500 * rating.mu / mean_rating, rd=rating.rd) for team, rating in ratings.items()}
 
         return ratings
 
@@ -338,8 +364,11 @@ class GlickoSoccer(object):
 
         ratings = self._rating_initialization(results, team_params)
 
+        i = 0
         log_loss_value = 0
         for row in results.itertuples(index=False):
+
+            i += 1
 
             index, home_team, away_team, season = row.index, row.home_team, row.away_team, row.season
             outcome, avg_scoring = row.outcome, row.avg_scoring
@@ -362,11 +391,12 @@ class GlickoSoccer(object):
             # get current team ratings
             home_rating, away_rating = ratings[home_team], ratings[away_team]
 
-            # calculate outcome probabilities
-            win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating, away_rating,
-                                                                                      home_advantage, avg_scoring)
+            if i > 5000:
+                # calculate outcome probabilities
+                win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating, away_rating,
+                                                                                          home_advantage, avg_scoring)
 
-            log_loss_value += three_outcomes_log_loss(outcome, win_probability, tie_probability, loss_probability)
+                log_loss_value += three_outcomes_log_loss(outcome, win_probability, tie_probability, loss_probability)
 
             # update team ratings
             ratings[home_team], ratings[away_team] = glicko.rate(home_rating, away_rating, home_advantage,
@@ -405,7 +435,7 @@ class GlickoSoccer(object):
         print("Current Loss:", current_loss)
 
         for i in range(number_iterations):
-            draw_inclination_list = np.linspace(draw_inclination - 0.02, draw_inclination + 0.02, 11)
+            draw_inclination_list = np.linspace(draw_inclination - 0.005, draw_inclination + 0.005, 6)
 
             for draw in draw_inclination_list:
 
@@ -416,7 +446,9 @@ class GlickoSoccer(object):
                     current_loss = loss
                     draw_inclination = draw
 
+            print()
             print("Best Draw Parameter:", draw_inclination)
+            print()
 
             for league, params in league_params.items():
 
@@ -428,21 +460,27 @@ class GlickoSoccer(object):
                 cup_penalty = params['cup_penalty']
                 new_team_update_mu = params['new_team_update_mu']
 
-                init_mu_list = [init_mu - 20, init_mu, init_mu + 20]
-                init_rd_list = [init_rd]
-                update_rd_list = [update_rd - 10, update_rd, update_rd + 10]
+                init_mu_list = [init_mu - 5, init_mu, init_mu + 5]
+                init_rd_list = [init_rd - 5, init_rd, init_rd + 5]
+                update_rd_list = [update_rd]
                 lift_update_mu_list = [lift_update_mu]
-                home_advantage_list = [home_advantage - 3, home_advantage, home_advantage + 3]
-                cup_penalty_list = [cup_penalty]
+                home_advantage_list = [home_advantage]
+                cup_penalty_list = [cup_penalty - 5, cup_penalty, cup_penalty + 5]
                 new_team_update_mu_list = [new_team_update_mu]
 
                 init_rd_list = [x for x in init_rd_list if x >= 100]
                 update_rd_list = [x for x in update_rd_list if x >= 20]
+                home_advantage_list = [x for x in home_advantage_list if x >= 0]
 
                 if league in first_leagues:
                     new_team_update_mu_list = [0]
+                    lift_update_mu_list = [x for x in lift_update_mu_list if x >= 0]
                 else:
                     cup_penalty_list = [0]
+                    lift_update_mu_list = [x for x in lift_update_mu_list if x <= 0]
+
+                if not lift_update_mu_list:
+                    lift_update_mu_list = [0]
 
                 params_list = list(product(init_mu_list,
                                            init_rd_list,

@@ -47,7 +47,7 @@ class Glicko2(object):
         g = 1 / sqrt(1 + 1.5 * (phi ** 2 + phi_opp ** 2) / pi ** 2)
         return g
 
-    def _expected_score(self, mu: float, mu_opp: float, g: float, avg_scoring) -> float:
+    def _expected_score(self, mu: float, mu_opp: float, g: float, skellam_draw_probability: float) -> float:
         """
             Calculate expected score of game.
             It is used in step 3 and others.
@@ -55,10 +55,11 @@ class Glicko2(object):
 
         delta_mu = g * (mu - mu_opp)
 
-        draw = self.draw_inclination + (1 / (1 + 2 * avg_scoring)) ** 2
+        draw_coefficient = 1 + exp(self.draw_inclination + skellam_draw_probability)
+        exp_delta_mu = exp(delta_mu)
 
-        win_probability = 1 / (1 + exp(-delta_mu) + exp(draw - delta_mu))
-        loss_probability = 1 / (1 + exp(delta_mu) + exp(draw + delta_mu))
+        win_probability = 1 / (1 + draw_coefficient / exp_delta_mu)
+        loss_probability = 1 / (1 + draw_coefficient * exp_delta_mu)
         tie_probability = (1 - win_probability - loss_probability)
 
         return win_probability + 0.5 * tie_probability
@@ -99,7 +100,8 @@ class Glicko2(object):
 
         return first_term - second_term
 
-    def _update_volatility(self, rating: Rating, rating_opp: Rating, outcome: float, avg_scoring) -> float:
+    def _update_volatility(self, rating: Rating, rating_opp: Rating, outcome: float,
+                           skellam_draw_probability: float) -> float:
         """
             Step 5.
             Determine the new value σ, of the volatility. This computation requires iterations.
@@ -111,7 +113,7 @@ class Glicko2(object):
         phi_opp = rating_opp.rd
 
         g = self._g(phi, phi_opp)
-        expected_score = self._expected_score(mu, mu_opp, g, avg_scoring)
+        expected_score = self._expected_score(mu, mu_opp, g, skellam_draw_probability)
         v = self._v(g, expected_score)
         rating_improvement = self._rating_improvement(v, g, outcome, expected_score)
 
@@ -147,7 +149,8 @@ class Glicko2(object):
 
         return new_volatility
 
-    def _update_rating(self, rating: Rating, rating_opp: Rating, outcome: float, avg_scoring) -> Rating:
+    def _update_rating(self, rating: Rating, rating_opp: Rating, outcome: float,
+                       skellam_draw_probability: float) -> Rating:
         """
             Run all steps.
             Step 6. Update the rating deviation to the new pre-rating period value, φ*.
@@ -164,10 +167,10 @@ class Glicko2(object):
         mu_opp = rating_opp.mu
         phi_opp = rating_opp.rd
 
-        new_volatility = self._update_volatility(rating, rating_opp, outcome, avg_scoring)
+        new_volatility = self._update_volatility(rating, rating_opp, outcome, skellam_draw_probability)
 
         g = self._g(phi, phi_opp)
-        expected_score = self._expected_score(mu, mu_opp, g, avg_scoring)
+        expected_score = self._expected_score(mu, mu_opp, g, skellam_draw_probability)
         v = self._v(g, expected_score)
 
         # step 6
@@ -190,7 +193,8 @@ class Glicko2(object):
         """"""
         return Rating(rating.mu + addition, rating.rd, rating.volatility)
 
-    def rate(self, home_rating: Rating, away_rating: Rating, advantage: float, outcome: str, avg_scoring) -> Tuple[Rating, Rating]:
+    def rate(self, home_rating: Rating, away_rating: Rating, advantage: float, outcome: str,
+             skellam_draw_probability: float) -> Tuple[Rating, Rating]:
         """
             home_rating - rating of home team.
             away_rating - rating of away team.
@@ -202,16 +206,22 @@ class Glicko2(object):
 
         # update ratings
         if outcome == 'H':
-            new_increased_home_rating = self._update_rating(increased_home_rating, decreased_away_rating, 1, avg_scoring)
-            new_decreased_away_rating = self._update_rating(decreased_away_rating, increased_home_rating, 0, avg_scoring)
+            new_increased_home_rating = self._update_rating(increased_home_rating, decreased_away_rating, 1,
+                                                            skellam_draw_probability)
+            new_decreased_away_rating = self._update_rating(decreased_away_rating, increased_home_rating, 0,
+                                                            skellam_draw_probability)
 
         elif outcome == 'D':
-            new_increased_home_rating = self._update_rating(increased_home_rating, decreased_away_rating, 0.5, avg_scoring)
-            new_decreased_away_rating = self._update_rating(decreased_away_rating, increased_home_rating, 0.5, avg_scoring)
+            new_increased_home_rating = self._update_rating(increased_home_rating, decreased_away_rating, 0.5,
+                                                            skellam_draw_probability)
+            new_decreased_away_rating = self._update_rating(decreased_away_rating, increased_home_rating, 0.5,
+                                                            skellam_draw_probability)
 
         else:
-            new_increased_home_rating = self._update_rating(increased_home_rating, decreased_away_rating, 0, avg_scoring)
-            new_decreased_away_rating = self._update_rating(decreased_away_rating, increased_home_rating, 1, avg_scoring)
+            new_increased_home_rating = self._update_rating(increased_home_rating, decreased_away_rating, 0,
+                                                            skellam_draw_probability)
+            new_decreased_away_rating = self._update_rating(decreased_away_rating, increased_home_rating, 1,
+                                                            skellam_draw_probability)
 
         # subtract advantage
         updated_home_rating = self._increase_mu(new_increased_home_rating, -advantage)
@@ -219,7 +229,8 @@ class Glicko2(object):
 
         return updated_home_rating, updated_away_rating
 
-    def probabilities(self, team: Rating, opp_team: Rating, advantage: float, avg_scoring: float) -> Tuple[float, float, float]:
+    def probabilities(self, team: Rating, opp_team: Rating, advantage: float,
+                      skellam_draw_probability: float) -> Tuple[float, float, float]:
         """
             Input ratings are in original scale.
             Return the probabilities of outcomes.
@@ -235,10 +246,11 @@ class Glicko2(object):
 
         delta_mu = g * (mu - mu_opp)
 
-        draw = self.draw_inclination + (1 / (1 + avg_scoring)) ** 2
+        draw_coefficient = 1 + exp(self.draw_inclination + skellam_draw_probability)
+        exp_delta_mu = exp(delta_mu)
 
-        win_probability = 1 / (1 + exp(-delta_mu) + exp(draw - delta_mu))
-        loss_probability = 1 / (1 + exp(delta_mu) + exp(draw + delta_mu))
+        win_probability = 1 / (1 + draw_coefficient / exp_delta_mu)
+        loss_probability = 1 / (1 + draw_coefficient * exp_delta_mu)
         tie_probability = (1 - win_probability - loss_probability)
 
         return win_probability, tie_probability, loss_probability

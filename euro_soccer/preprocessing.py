@@ -61,6 +61,7 @@ class DataPreprocessor(object):
 
         matches['tournament_type'] = matches['tournament_type'].map({'first': 1,
                                                                      'second': 2,
-                                                                     'cups': 3})
+                                                                     'cups': 3,
+                                                                     'super_cups': 4})
 
         return matches
