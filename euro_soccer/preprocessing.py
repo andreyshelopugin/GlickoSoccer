@@ -4,7 +4,8 @@ import numpy as np
 
 class DataPreprocessor(object):
 
-    def __init__(self):
+    def __init__(self, min_season=2018):
+        self.min_season = min_season
         self.euro_cups = ['Europa League', 'Champions League', 'Europa Conference League']
 
     def _rename_teams(self, matches: pd.DataFrame):
@@ -52,6 +53,8 @@ class DataPreprocessor(object):
         matches['date'] = pd.to_datetime(matches['date'].str.replace('29.02', '28.02'), format='%d.%m.%Y', dayfirst=True)
 
         matches['season'] = matches['season'].map(lambda x: x.split('-')[0]).to_numpy('int')
+
+        matches = matches.loc[matches['season'] >= self.min_season]
 
         matches = matches.sort_values(['date']).reset_index(drop=True)
 
