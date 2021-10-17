@@ -7,13 +7,13 @@ import pandas as pd
 
 from glicko2 import Glicko2, Rating
 from utils.metrics import three_outcomes_log_loss
-from scipy.stats import skellam
+from euro_soccer.draw_model import DrawLightGBM
 
 
 class GlickoSoccer(object):
 
     def __init__(self, is_draw_mode=True, init_mu=1500, init_rd=120, update_rd=27, lift_update_mu=0,
-                 home_advantage=30, pandemic_home_advantage=10, draw_inclination=-0.5662, cup_penalty=10,
+                 home_advantage=30, pandemic_home_advantage=10, draw_inclination=-0.5457, cup_penalty=10,
                  new_team_update_mu=-20):
         self.is_draw_mode = is_draw_mode
         self.init_mu = init_mu
@@ -25,7 +25,7 @@ class GlickoSoccer(object):
         self.draw_inclination = draw_inclination
         self.cup_penalty = cup_penalty
         self.new_team_update_mu = new_team_update_mu
-        self.euro_cups = {'Champions League', 'Europa League'}  # !!!!
+        self.euro_cups = {'Champions League', 'Europa League', 'Europa Conference League'}
 
     def preprocessing(self, results: pd.DataFrame) -> pd.DataFrame:
         """"""
@@ -48,7 +48,13 @@ class GlickoSoccer(object):
         is_pandemic = (results['date'] > '2020-03-03') & (results['date'] < '2021-06-06')
         results['is_pandemic'] = np.where(is_pandemic, 1, 0)
 
-        short_tournaments = ['Azerbaijan. First Division', 'Faroe Islands. 1. Deild']
+        short_tournaments = ['Azerbaijan. First Division',
+                             'Faroe Islands. 1. Deild',
+                             'Armenia. First League',
+                             'Uzbekistan. Super League',
+                             'Uzbekistan. Super League',
+                             'Uzbekistan. Uzbekistan Cup',
+                             'Uzbekistan. Super Cup']
 
         results = results.loc[~results['tournament'].isin(short_tournaments)]
 
@@ -59,44 +65,26 @@ class GlickoSoccer(object):
         results = self._get_finals(results)
 
         results = (results
-                   .drop(columns=['home_score', 'away_score', 'avg_home_score', 'avg_away_score'])
+                   .drop(columns=['home_score', 'away_score'])
                    .sort_values(['date']))
 
         return results
 
     @staticmethod
-    def draw_probability(results: pd.DataFrame) -> pd.DataFrame:
+    def draw_probability(results: pd.DataFrame, is_actual=False) -> pd.DataFrame:
         """"""
-        home_score = (results
-                      .sort_values(['home_team', 'date'], ascending=[True, True])
-                      .groupby(['home_team'], sort=False)
-                      ['home_score']
-                      .shift()
-                      .rolling(10, min_periods=5)
-                      .mean()
-                      .to_dict())
+        if is_actual:
+            DrawLightGBM().actual_predictions(results)
 
-        away_score = (results
-                      .sort_values(['away_team', 'date'], ascending=[True, True])
-                      .groupby(['away_team'], sort=False)
-                      ['away_score']
-                      .shift()
-                      .rolling(10, min_periods=5)
-                      .mean()
-                      .to_dict())
+        draw_predictions = joblib.load('data/skellam_predictions.pkl')
 
-        results = results.reset_index()
+        draw_predictions = dict(zip(draw_predictions['index'], draw_predictions['draw']))
 
-        results['avg_home_score'] = results['level_0'].map(home_score).fillna(results['home_score'].mean())
-        results['avg_away_score'] = results['level_0'].map(away_score).fillna(results['away_score'].mean())
+        results['draw_probability'] = results['index'].map(draw_predictions)
 
-        results = results.drop(columns=['level_0'])
+        mean_draw = results.loc[results['outcome'] == 'D'].shape[0] / results.shape[0]
 
-        results['draw_probability'] = (results
-                                       .loc[:, ['avg_home_score', 'avg_away_score']]
-                                       .apply(lambda df: skellam.pmf(0, df[0], df[1]).sum(), axis=1))
-
-        results['draw_probability'] = results['draw_probability'].fillna(results['draw_probability'].mean())
+        results['draw_probability'] = results['draw_probability'].fillna(mean_draw)
 
         return results
 
@@ -185,8 +173,7 @@ class GlickoSoccer(object):
 
         return team_params
 
-    @staticmethod
-    def _rating_initialization(results: pd.DataFrame, team_params: dict) -> dict:
+    def _rating_initialization(self, results: pd.DataFrame, team_params: dict) -> dict:
         """"""
         seasons = sorted(results['season'].unique())
 
@@ -198,7 +185,8 @@ class GlickoSoccer(object):
 
         # normalization as way for fighting with inflation
         mean_rating = np.mean([rating.mu for _, rating in ratings.items()])
-        ratings = {team: Rating(mu=1500 * rating.mu / mean_rating, rd=rating.rd) for team, rating in ratings.items()}
+        ratings = {team: Rating(mu=self.init_mu * rating.mu / mean_rating, rd=rating.rd)
+                   for team, rating in ratings.items()}
 
         return ratings
 
@@ -474,7 +462,7 @@ class GlickoSoccer(object):
         print("Current Loss:", current_loss)
 
         for i in range(number_iterations):
-            draw_inclination_list = np.linspace(draw_inclination - 0.001, draw_inclination + 0.001, 11)
+            draw_inclination_list = np.linspace(draw_inclination - 0.005, draw_inclination + 0.005, 21)
 
             for draw in draw_inclination_list:
 
@@ -491,6 +479,8 @@ class GlickoSoccer(object):
 
             for league, params in league_params.items():
 
+                # if league in {'Norway. Eliteserien', 'Norway. OBOS-ligaen'}:
+
                 init_mu = params['init_mu']
                 init_rd = params['init_rd']
                 update_rd = params['update_rd']
@@ -500,14 +490,14 @@ class GlickoSoccer(object):
                 cup_penalty = params['cup_penalty']
                 new_team_update_mu = params['new_team_update_mu']
 
-                init_mu_list = [init_mu - 10, init_mu + 10]
-                init_rd_list = [init_rd]
-                update_rd_list = [update_rd]
-                lift_update_mu_list = [lift_update_mu - 10, lift_update_mu + 10]
+                init_mu_list = [init_mu - 5, init_mu, init_mu + 5]
+                init_rd_list = [init_rd - 3, init_rd + 3]
+                update_rd_list = [update_rd - 3, update_rd + 3]
+                lift_update_mu_list = [lift_update_mu - 3, lift_update_mu, lift_update_mu + 3]
                 home_advantage_list = [home_advantage]
                 pandemic_home_advantage_list = [pandemic_home_advantage]
-                cup_penalty_list = [cup_penalty]
-                new_team_update_mu_list = [new_team_update_mu - 10, new_team_update_mu + 10]
+                cup_penalty_list = [cup_penalty - 2, cup_penalty + 2]
+                new_team_update_mu_list = [new_team_update_mu - 3, new_team_update_mu, new_team_update_mu + 3]
 
                 init_rd_list = [x for x in init_rd_list if x >= 100]
                 update_rd_list = [x for x in update_rd_list if x >= 20]
@@ -516,16 +506,20 @@ class GlickoSoccer(object):
 
                 if league in first_leagues:
                     new_team_update_mu_list = [0]
-                    lift_update_mu_list = [x for x in lift_update_mu_list if x >= 0]
+                    lift_update_mu_list = [x for x in lift_update_mu_list if 0 <= x <= 100]
+                    cup_penalty_list = [x for x in cup_penalty_list if 0 <= x <= 50]
                 else:
                     cup_penalty_list = [0]
-                    lift_update_mu_list = [x for x in lift_update_mu_list if x <= 0]
-                    new_team_update_mu_list = [x for x in new_team_update_mu_list if x <= 0]
+                    lift_update_mu_list = [x for x in lift_update_mu_list if -100 <= x <= 0]
+                    new_team_update_mu_list = [x for x in new_team_update_mu_list if 0 >= x >= -150]
 
                 if not lift_update_mu_list:
                     lift_update_mu_list = [0]
 
                 if not new_team_update_mu_list:
+                    new_team_update_mu_list = [0]
+
+                if league == 'Netherlands. Eerste Divisie':
                     new_team_update_mu_list = [0]
 
                 params_list = list(product(init_mu_list,
@@ -565,8 +559,9 @@ class GlickoSoccer(object):
 
                 league_params[league] = optimal_params_dict
 
-                print(league, int(params_loss[optimal_params]))
+                print(league, round(current_loss - params_loss[optimal_params], 1))
                 print(optimal_params_dict)
+                current_loss = params_loss[optimal_params]
 
                 joblib.dump(league_params, 'data/league_params.pkl')
 
