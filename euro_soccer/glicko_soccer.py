@@ -13,7 +13,7 @@ from euro_soccer.draw_model import DrawLightGBM
 class GlickoSoccer(object):
 
     def __init__(self, is_draw_mode=True, init_mu=1500, init_rd=140, update_rd=34, lift_update_mu=0,
-                 home_advantage=28, pandemic_home_advantage=19, draw_inclination=-0.5457, cup_penalty=10,
+                 home_advantage=28, pandemic_home_advantage=19, draw_inclination=-0.5457, cup_penalty=6,
                  new_team_update_mu=-42):
         self.is_draw_mode = is_draw_mode
         self.init_mu = init_mu
@@ -494,11 +494,11 @@ class GlickoSoccer(object):
                 new_team_update_mu = params['new_team_update_mu']
 
                 init_mu_list = [init_mu - 30, init_mu + 30]
-                init_rd_list = [init_rd - 3, init_rd + 3]
-                update_rd_list = [update_rd - 3, update_rd + 3]
-                lift_update_mu_list = [lift_update_mu - 3, lift_update_mu, lift_update_mu + 3]
-                home_advantage_list = [home_advantage]
-                pandemic_home_advantage_list = [pandemic_home_advantage]
+                init_rd_list = [init_rd]
+                update_rd_list = [update_rd]
+                lift_update_mu_list = [lift_update_mu]
+                home_advantage_list = [home_advantage - 3, home_advantage + 3]
+                pandemic_home_advantage_list = [pandemic_home_advantage - 3, pandemic_home_advantage + 3]
                 cup_penalty_list = [cup_penalty - 2, cup_penalty + 2]
                 new_team_update_mu_list = [new_team_update_mu - 3, new_team_update_mu, new_team_update_mu + 3]
 
