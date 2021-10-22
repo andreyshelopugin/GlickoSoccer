@@ -12,9 +12,9 @@ from euro_soccer.draw_model import DrawLightGBM
 
 class GlickoSoccer(object):
 
-    def __init__(self, is_draw_mode=True, init_mu=1500, init_rd=120, update_rd=27, lift_update_mu=0,
-                 home_advantage=30, pandemic_home_advantage=10, draw_inclination=-0.5457, cup_penalty=10,
-                 new_team_update_mu=-20):
+    def __init__(self, is_draw_mode=True, init_mu=1500, init_rd=140, update_rd=34, lift_update_mu=0,
+                 home_advantage=28, pandemic_home_advantage=19, draw_inclination=-0.5457, cup_penalty=10,
+                 new_team_update_mu=-42):
         self.is_draw_mode = is_draw_mode
         self.init_mu = init_mu
         self.init_rd = init_rd
@@ -74,7 +74,7 @@ class GlickoSoccer(object):
         return results
 
     @staticmethod
-    def draw_probability(results: pd.DataFrame, is_actual=True) -> pd.DataFrame:
+    def draw_probability(results: pd.DataFrame, is_actual=False) -> pd.DataFrame:
         """"""
         if is_actual:
             DrawLightGBM().actual_predictions(results)
@@ -493,7 +493,7 @@ class GlickoSoccer(object):
                 cup_penalty = params['cup_penalty']
                 new_team_update_mu = params['new_team_update_mu']
 
-                init_mu_list = [init_mu - 50, init_mu + 50]
+                init_mu_list = [init_mu - 30, init_mu + 30]
                 init_rd_list = [init_rd - 3, init_rd + 3]
                 update_rd_list = [update_rd - 3, update_rd + 3]
                 lift_update_mu_list = [lift_update_mu - 3, lift_update_mu, lift_update_mu + 3]
