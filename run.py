@@ -12,8 +12,11 @@ matches = GlickoSoccer().preprocessing(matches)
 
 
 # init_league_params = GlickoSoccer()._league_params_initialization(matches)
-# league_params = joblib.load('data/league_params.pkl')
-#
+league_params = joblib.load('data/league_params.pkl')
+
+print(league_params)
+
+
 # for league, params in league_params.items():
 #     if league != 'Armenia. First League':
 #         init_league_params[league]['home_advantage'] = params['home_advantage']
@@ -24,7 +27,7 @@ matches = GlickoSoccer().preprocessing(matches)
 # joblib.dump(league_params, 'data/league_params.pkl')
 
 
-league_params = GlickoSoccer().fit_params(matches, 10, is_params_initialization=False)
+# league_params = GlickoSoccer().fit_params(matches, 10, is_params_initialization=True)
 
 
 

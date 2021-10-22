@@ -35,6 +35,9 @@ class GlickoSoccer(object):
 
         results = results.loc[results['home_score'] != '-']
 
+        # technical wins
+        results = results.loc[results['notes'] != 'Awrd']
+
         results[['home_score', 'away_score']] = results[['home_score', 'away_score']].to_numpy('int')
 
         conditions = [(results['home_score'] > results['away_score']),
@@ -65,13 +68,13 @@ class GlickoSoccer(object):
         results = self._get_finals(results)
 
         results = (results
-                   .drop(columns=['home_score', 'away_score'])
+                   .drop(columns=['home_score', 'away_score', 'notes'])
                    .sort_values(['date']))
 
         return results
 
     @staticmethod
-    def draw_probability(results: pd.DataFrame, is_actual=False) -> pd.DataFrame:
+    def draw_probability(results: pd.DataFrame, is_actual=True) -> pd.DataFrame:
         """"""
         if is_actual:
             DrawLightGBM().actual_predictions(results)
@@ -462,7 +465,7 @@ class GlickoSoccer(object):
         print("Current Loss:", current_loss)
 
         for i in range(number_iterations):
-            draw_inclination_list = np.linspace(draw_inclination - 0.005, draw_inclination + 0.005, 21)
+            draw_inclination_list = np.linspace(draw_inclination - 0.01, draw_inclination + 0.01, 21)
 
             for draw in draw_inclination_list:
 
@@ -490,7 +493,7 @@ class GlickoSoccer(object):
                 cup_penalty = params['cup_penalty']
                 new_team_update_mu = params['new_team_update_mu']
 
-                init_mu_list = [init_mu - 5, init_mu, init_mu + 5]
+                init_mu_list = [init_mu - 50, init_mu + 50]
                 init_rd_list = [init_rd - 3, init_rd + 3]
                 update_rd_list = [update_rd - 3, update_rd + 3]
                 lift_update_mu_list = [lift_update_mu - 3, lift_update_mu, lift_update_mu + 3]

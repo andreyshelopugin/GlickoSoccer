@@ -15,8 +15,8 @@ from euro_soccer.draw_probability_train_creator import TrainCreator
 class DrawLightGBM(object):
 
     def __init__(self, objective='poisson', metric='poisson', cv_metric='poisson-mean',
-                 n_estimators=5000, learning_rate=0.04, num_leaves=31, feature_fraction=0.88,
-                 lambda_l1=0.0, lambda_l2=0.0, bagging_fraction=1.0, bagging_freq=1, min_data_in_leaf=20,
+                 n_estimators=5000, learning_rate=0.03, num_leaves=31, feature_fraction=0.5,
+                 lambda_l1=0.0, lambda_l2=5.648, bagging_fraction=0.7, bagging_freq=2, min_data_in_leaf=20,
                  early_stopping_round=70, cv=5, seed=7):
         #
         # def __init__(self, objective='poisson', metric='poisson-mean', n_estimators=1500, learning_rate=0.006,
@@ -42,16 +42,23 @@ class DrawLightGBM(object):
         self.train_path = 'data/train.pkl'
         self.test_path = 'data/test.pkl'
         self.model_path = 'data/model.pkl'
-        self.features = ['is_home',
-                         'avg_scoring_10',
-                         'avg_scoring_20',
-                         'is_pandemic',
-                         'mean_score_10',
-                         'median_score_10',
-                         'mean_score_20',
-                         'mean_score_10_against',
-                         'median_score_10_against',
-                         'mean_score_20_against']
+        self.features = [
+            'is_home',
+            'avg_scoring_5',
+            'avg_scoring_10',
+            'avg_scoring_20',
+            'is_pandemic',
+            'mean_score_5',
+            'mean_score_10',
+            'mean_score_20',
+            'median_score_5',
+            'median_score_10',
+            'median_score_20',
+            'mean_score_5_against',
+            'mean_score_10_against',
+            'mean_score_20_against',
+            'median_score_10_against',
+            'max_score_10']
         self.target = 'score'
         self.categorical_features = []
 
@@ -163,7 +170,7 @@ class DrawLightGBM(object):
         return validation
 
     def actual_predictions(self, results: pd.DataFrame):
-        """"""
+        """Refit model and make predictions for all data"""
         TrainCreator().train_validation(results)
 
         self.save_model()
@@ -202,15 +209,9 @@ class DrawLightGBM(object):
                        .sort_values(['index'])
                        .reset_index(drop=True))
 
-        predictions['home_win'] = (predictions
-                                   .loc[:, ['home_prediction', 'away_prediction']]
-                                   .apply(lambda df: skellam.pmf([range(1, 30)], df[0], df[1]).sum(), axis=1))
-
         predictions['draw'] = (predictions
                                .loc[:, ['home_prediction', 'away_prediction']]
                                .apply(lambda df: skellam.pmf(0, df[0], df[1]).sum(), axis=1))
-
-        predictions['away_win'] = (1 - predictions['home_win'] - predictions['draw'])
 
         joblib.dump(predictions, 'data/skellam_predictions.pkl')
 
@@ -309,8 +310,7 @@ class DrawLightGBM(object):
             params = {
                 'objective': trial.suggest_categorical('objective', [self.objective]),
                 'n_estimators': trial.suggest_categorical('n_estimators', [5000]),
-                'early_stopping_round': trial.suggest_categorical('early_stopping_round',
-                                                                  [10, 20, 30, 40, 50, 70, 100]),
+                'early_stopping_round': trial.suggest_categorical('early_stopping_round', [10, 20, 30, 40, 50, 70, 100]),
                 'learning_rate': trial.suggest_uniform('learning_rate', 0.0001, 0.05),
 
                 'feature_fraction': trial.suggest_categorical('feature_fraction', [self.feature_fraction]),
@@ -337,7 +337,3 @@ class DrawLightGBM(object):
         experiments.columns = [col.replace('params_', '') for col in experiments.columns]
 
         return experiments
-
-
-
-
