@@ -12,10 +12,8 @@ from euro_soccer.draw_model import DrawLightGBM
 
 class GlickoSoccer(object):
 
-    def __init__(self, is_draw_mode=True, init_mu=1500, init_rd=140, update_rd=34, lift_update_mu=0,
-                 home_advantage=28, pandemic_home_advantage=19, draw_inclination=-0.5457, cup_penalty=6,
-                 new_team_update_mu=-42):
-        self.is_draw_mode = is_draw_mode
+    def __init__(self, init_mu=1500, init_rd=140, update_rd=34, lift_update_mu=0, home_advantage=28,
+                 pandemic_home_advantage=19, draw_inclination=-0.5417, new_team_update_mu=-42):
         self.init_mu = init_mu
         self.init_rd = init_rd
         self.lift_update_mu = lift_update_mu
@@ -23,7 +21,6 @@ class GlickoSoccer(object):
         self.home_advantage = home_advantage
         self.pandemic_home_advantage = pandemic_home_advantage
         self.draw_inclination = draw_inclination
-        self.cup_penalty = cup_penalty
         self.new_team_update_mu = new_team_update_mu
         self.euro_cups = {'Champions League', 'Europa League', 'Europa Conference League'}
 
@@ -131,7 +128,7 @@ class GlickoSoccer(object):
                   ['index']
                   .unique())
 
-        results['tournament_type'] = np.where(results['index'].isin(finals),
+        results['tournament_type'] = np.where(results['index'].isin(finals) | (results['notes'] == 'Neutral'),
                                               4,
                                               results['tournament_type'])
 
@@ -159,7 +156,6 @@ class GlickoSoccer(object):
                                      'lift_update_mu': self.lift_update_mu,
                                      'home_advantage': self.home_advantage,
                                      'pandemic_home_advantage': self.pandemic_home_advantage,
-                                     'cup_penalty': self.cup_penalty,
                                      'new_team_update_mu': self.new_team_update_mu}
 
         return league_params
@@ -282,19 +278,14 @@ class GlickoSoccer(object):
 
         return ratings
 
-    def _indexes_for_update(self, results: pd.DataFrame) -> Tuple[dict, dict, dict, set, set]:
+    def _indexes_for_update(self, results: pd.DataFrame) -> Tuple[dict, dict, dict, set]:
         """"""
-
-        team_leagues = {season: self._team_leagues(results, season) for season in set(results['season'])}
-
-        eurocups_teams = {season: self._team_international_cups(results, season) for season in set(results['season'])}
 
         missed_previous_season, changed_league, same_league = self._update_ratings_indexes(results)
 
         indexes_for_update_ratings = set()
-        eurocup_in_cups_indexes = set()
         for row in results.itertuples():
-            index, home_team, away_team, season = row.index, row.home_team, row.away_team, row.season
+            index, home_team, away_team = row.index, row.home_team, row.away_team
 
             for team in [home_team, away_team]:
                 if team in missed_previous_season:
@@ -309,15 +300,7 @@ class GlickoSoccer(object):
                     if index in same_league[team]:
                         indexes_for_update_ratings.add(index)
 
-            euro = eurocups_teams[season]
-            if ((home_team in euro) and (away_team not in euro)) or ((home_team not in euro) & (away_team in euro)):
-                # exclude cup finals
-                if ((row.tournament_type == 3)
-                        and (row.tournament not in self.euro_cups)
-                        and (team_leagues[season][home_team] != team_leagues[season][away_team])):
-                    eurocup_in_cups_indexes.add(index)
-
-        return missed_previous_season, changed_league, same_league, indexes_for_update_ratings, eurocup_in_cups_indexes
+        return missed_previous_season, changed_league, same_league, indexes_for_update_ratings
 
     def rate_teams(self, results: pd.DataFrame, league_params: dict) -> dict:
         """"""
@@ -326,10 +309,9 @@ class GlickoSoccer(object):
 
         seasons = set(results['season'])
 
-        eurocups_teams = {season: self._team_international_cups(results, season) for season in seasons}
         team_leagues_all = {season: self._team_leagues(results, season) for season in seasons}
 
-        missed_prev, changed, same, indexes_for_update, eurocup_in_cups = self._indexes_for_update(results)
+        missed_prev, changed, same, indexes_for_update = self._indexes_for_update(results)
         results = results.drop(columns=['date', 'country'])
 
         team_params = {season: self._team_params(season, league_params, team_leagues_all) for season in seasons}
@@ -357,12 +339,6 @@ class GlickoSoccer(object):
                 else:
                     home_advantage = home_params['home_advantage']
 
-            if index in eurocup_in_cups:
-                if home_team in eurocups_teams[season]:
-                    home_advantage -= home_params['cup_penalty']
-                else:
-                    home_advantage += away_params['cup_penalty']
-
             # get current team ratings
             home_rating, away_rating = ratings[home_team], ratings[away_team]
 
@@ -375,8 +351,7 @@ class GlickoSoccer(object):
 
     def calculate_loss(self, results: pd.DataFrame, league_params: dict, team_leagues_all: dict,
                        missed_previous_season: dict, changed_league: dict, same_league: dict,
-                       indexes_for_update_ratings: set, eurocup_in_cups_indexes: set,
-                       eurocups_teams: dict, draw_inclination: float) -> float:
+                       indexes_for_update_ratings: set, draw_inclination: float) -> float:
         """"""
 
         glicko = Glicko2(draw_inclination=draw_inclination)
@@ -408,12 +383,6 @@ class GlickoSoccer(object):
                 else:
                     home_advantage = home_params['home_advantage']
 
-            if index in eurocup_in_cups_indexes:
-                if home_team in eurocups_teams[season]:
-                    home_advantage -= home_params['cup_penalty']
-                else:
-                    home_advantage += away_params['cup_penalty']
-
             # get current team ratings
             home_rating, away_rating = ratings[home_team], ratings[away_team]
 
@@ -438,10 +407,6 @@ class GlickoSoccer(object):
     def fit_params(self, results: pd.DataFrame, number_iterations: int, is_params_initialization: True):
         """"""
 
-        eurocups_teams = dict()
-        for season in results['season'].unique():
-            eurocups_teams[season] = self._team_international_cups(results, season)
-
         if is_params_initialization:
             league_params = self._league_params_initialization(results)
         else:
@@ -451,38 +416,38 @@ class GlickoSoccer(object):
 
         seasons = set(results['season'])
 
-        eurocups_teams = {season: self._team_international_cups(results, season) for season in seasons}
         team_leagues_all = {season: self._team_leagues(results, season) for season in seasons}
 
-        missed_prev, changed, same, indexes_for_update, eurocup_in_cups = self._indexes_for_update(results)
+        missed_prev, changed, same, indexes_for_update = self._indexes_for_update(results)
         results = results.drop(columns=['date', 'country'])
 
         draw_inclination = self.draw_inclination
 
         current_loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same,
-                                           indexes_for_update, eurocup_in_cups, eurocups_teams, draw_inclination)
+                                           indexes_for_update, draw_inclination)
 
         print("Current Loss:", current_loss)
 
         for i in range(number_iterations):
-            draw_inclination_list = np.linspace(draw_inclination - 0.01, draw_inclination + 0.01, 21)
+            draw_inclination_list = np.linspace(draw_inclination - 0.01, draw_inclination + 0.01, 6)
 
             for draw in draw_inclination_list:
-
                 loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same,
-                                           indexes_for_update, eurocup_in_cups, eurocups_teams, draw)
+                                           indexes_for_update, draw)
 
                 if loss < current_loss:
                     current_loss = loss
                     draw_inclination = draw
 
+            print('############################################################################')
             print()
             print("Best Draw Parameter:", draw_inclination)
             print()
 
             for league, params in league_params.items():
 
-                # if league in {'Norway. Eliteserien', 'Norway. OBOS-ligaen'}:
+                # if league in {'Norway. Eliteserien', 'Norway. OBOS-ligaen', 'Italy. Serie B', 'Italy. Serie B',
+                #               'Italy. Serie A'}:
 
                 init_mu = params['init_mu']
                 init_rd = params['init_rd']
@@ -490,17 +455,15 @@ class GlickoSoccer(object):
                 lift_update_mu = params['lift_update_mu']
                 home_advantage = params['home_advantage']
                 pandemic_home_advantage = params['pandemic_home_advantage']
-                cup_penalty = params['cup_penalty']
                 new_team_update_mu = params['new_team_update_mu']
 
-                init_mu_list = [init_mu - 30, init_mu + 30]
+                init_mu_list = [init_mu - 20, init_mu, init_mu + 20]
                 init_rd_list = [init_rd]
                 update_rd_list = [update_rd]
                 lift_update_mu_list = [lift_update_mu]
-                home_advantage_list = [home_advantage - 3, home_advantage + 3]
-                pandemic_home_advantage_list = [pandemic_home_advantage - 3, pandemic_home_advantage + 3]
-                cup_penalty_list = [cup_penalty - 2, cup_penalty + 2]
-                new_team_update_mu_list = [new_team_update_mu - 3, new_team_update_mu, new_team_update_mu + 3]
+                home_advantage_list = [home_advantage]
+                pandemic_home_advantage_list = [pandemic_home_advantage]
+                new_team_update_mu_list = [new_team_update_mu - 20, new_team_update_mu, new_team_update_mu + 20]
 
                 init_rd_list = [x for x in init_rd_list if x >= 100]
                 update_rd_list = [x for x in update_rd_list if x >= 20]
@@ -508,11 +471,9 @@ class GlickoSoccer(object):
                 pandemic_home_advantage_list = [x for x in pandemic_home_advantage_list if x >= 0]
 
                 if league in first_leagues:
-                    new_team_update_mu_list = [0]
                     lift_update_mu_list = [x for x in lift_update_mu_list if 0 <= x <= 100]
-                    cup_penalty_list = [x for x in cup_penalty_list if 0 <= x <= 50]
+                    new_team_update_mu_list = [0]
                 else:
-                    cup_penalty_list = [0]
                     lift_update_mu_list = [x for x in lift_update_mu_list if -100 <= x <= 0]
                     new_team_update_mu_list = [x for x in new_team_update_mu_list if 0 >= x >= -150]
 
@@ -531,7 +492,6 @@ class GlickoSoccer(object):
                                            lift_update_mu_list,
                                            home_advantage_list,
                                            pandemic_home_advantage_list,
-                                           cup_penalty_list,
                                            new_team_update_mu_list))
 
                 params_loss = {params: 0 for params in params_list}
@@ -542,12 +502,10 @@ class GlickoSoccer(object):
                                              'lift_update_mu': params[3],
                                              'home_advantage': params[4],
                                              'pandemic_home_advantage': params[5],
-                                             'cup_penalty': params[6],
-                                             'new_team_update_mu': params[7]}
+                                             'new_team_update_mu': params[6]}
 
                     params_loss[params] = self.calculate_loss(results, league_params, team_leagues_all,
-                                                              missed_prev, changed, same, indexes_for_update,
-                                                              eurocup_in_cups, eurocups_teams, draw_inclination)
+                                                              missed_prev, changed, same, indexes_for_update, draw_inclination)
 
                 optimal_params = min(params_loss, key=params_loss.get)
 
@@ -557,8 +515,7 @@ class GlickoSoccer(object):
                                        'lift_update_mu': optimal_params[3],
                                        'home_advantage': optimal_params[4],
                                        'pandemic_home_advantage': optimal_params[5],
-                                       'cup_penalty': optimal_params[6],
-                                       'new_team_update_mu': optimal_params[7]}
+                                       'new_team_update_mu': optimal_params[6]}
 
                 league_params[league] = optimal_params_dict
 
