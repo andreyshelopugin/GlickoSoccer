@@ -428,102 +428,110 @@ class GlickoSoccer(object):
 
         print("Current Loss:", current_loss)
 
+        not_improved_leagues = set()
         for i in range(number_iterations):
-            draw_inclination_list = np.linspace(draw_inclination - 0.01, draw_inclination + 0.01, 6)
-
-            for draw in draw_inclination_list:
-                loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same,
-                                           indexes_for_update, draw)
-
-                if loss < current_loss:
-                    current_loss = loss
-                    draw_inclination = draw
-
-            print('############################################################################')
-            print()
-            print("Best Draw Parameter:", draw_inclination)
-            print()
+            # draw_inclination_list = np.linspace(draw_inclination - 0.01, draw_inclination + 0.01, 6)
+            #
+            # for draw in draw_inclination_list:
+            #     loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same,
+            #                                indexes_for_update, draw)
+            #
+            #     if loss < current_loss:
+            #         current_loss = loss
+            #         draw_inclination = draw
+            #
+            # print('############################################################################')
+            # print()
+            # print("Best Draw Parameter:", draw_inclination)
+            # print()
 
             for league, params in league_params.items():
 
-                # if league in {'Norway. Eliteserien', 'Norway. OBOS-ligaen', 'Italy. Serie B', 'Italy. Serie B',
-                #               'Italy. Serie A'}:
+                if league in league not in not_improved_leagues:
 
-                init_mu = params['init_mu']
-                init_rd = params['init_rd']
-                update_rd = params['update_rd']
-                lift_update_mu = params['lift_update_mu']
-                home_advantage = params['home_advantage']
-                pandemic_home_advantage = params['pandemic_home_advantage']
-                new_team_update_mu = params['new_team_update_mu']
+                    init_mu = params['init_mu']
+                    init_rd = params['init_rd']
+                    update_rd = params['update_rd']
+                    lift_update_mu = params['lift_update_mu']
+                    home_advantage = params['home_advantage']
+                    pandemic_home_advantage = params['pandemic_home_advantage']
+                    new_team_update_mu = params['new_team_update_mu']
 
-                init_mu_list = [init_mu - 20, init_mu, init_mu + 20]
-                init_rd_list = [init_rd]
-                update_rd_list = [update_rd]
-                lift_update_mu_list = [lift_update_mu]
-                home_advantage_list = [home_advantage]
-                pandemic_home_advantage_list = [pandemic_home_advantage]
-                new_team_update_mu_list = [new_team_update_mu - 20, new_team_update_mu, new_team_update_mu + 20]
+                    init_mu_list = [init_mu - 10, init_mu + 10]
+                    init_rd_list = [init_rd]
+                    update_rd_list = [update_rd]
+                    lift_update_mu_list = [lift_update_mu]
+                    home_advantage_list = [home_advantage]
+                    pandemic_home_advantage_list = [pandemic_home_advantage]
+                    new_team_update_mu_list = [new_team_update_mu]
 
-                init_rd_list = [x for x in init_rd_list if x >= 100]
-                update_rd_list = [x for x in update_rd_list if x >= 20]
-                home_advantage_list = [x for x in home_advantage_list if x >= 0]
-                pandemic_home_advantage_list = [x for x in pandemic_home_advantage_list if x >= 0]
+                    init_rd_list = [x for x in init_rd_list if x >= 100]
+                    update_rd_list = [x for x in update_rd_list if x >= 20]
+                    home_advantage_list = [x for x in home_advantage_list if x >= 0]
+                    pandemic_home_advantage_list = [x for x in pandemic_home_advantage_list if x >= 0]
 
-                if league in first_leagues:
-                    lift_update_mu_list = [x for x in lift_update_mu_list if 0 <= x <= 100]
-                    new_team_update_mu_list = [0]
-                else:
-                    lift_update_mu_list = [x for x in lift_update_mu_list if -100 <= x <= 0]
-                    new_team_update_mu_list = [x for x in new_team_update_mu_list if 0 >= x >= -150]
+                    if league in first_leagues:
+                        lift_update_mu_list = [x for x in lift_update_mu_list if 0 <= x <= 100]
+                        new_team_update_mu_list = [0]
+                    else:
+                        lift_update_mu_list = [x for x in lift_update_mu_list if -100 <= x <= 0]
+                        new_team_update_mu_list = [x for x in new_team_update_mu_list if 0 >= x >= -150]
 
-                if not lift_update_mu_list:
-                    lift_update_mu_list = [0]
+                    if not lift_update_mu_list:
+                        lift_update_mu_list = [0]
 
-                if not new_team_update_mu_list:
-                    new_team_update_mu_list = [0]
+                    if not new_team_update_mu_list:
+                        new_team_update_mu_list = [0]
 
-                if league == 'Netherlands. Eerste Divisie':
-                    new_team_update_mu_list = [0]
+                    if league == 'Netherlands. Eerste Divisie':
+                        new_team_update_mu_list = [0]
 
-                params_list = list(product(init_mu_list,
-                                           init_rd_list,
-                                           update_rd_list,
-                                           lift_update_mu_list,
-                                           home_advantage_list,
-                                           pandemic_home_advantage_list,
-                                           new_team_update_mu_list))
+                    params_list = list(product(init_mu_list,
+                                               init_rd_list,
+                                               update_rd_list,
+                                               lift_update_mu_list,
+                                               home_advantage_list,
+                                               pandemic_home_advantage_list,
+                                               new_team_update_mu_list))
 
-                params_loss = {params: 0 for params in params_list}
-                for params in params_list:
-                    league_params[league] = {'init_mu': params[0],
-                                             'init_rd': params[1],
-                                             'update_rd': params[2],
-                                             'lift_update_mu': params[3],
-                                             'home_advantage': params[4],
-                                             'pandemic_home_advantage': params[5],
-                                             'new_team_update_mu': params[6]}
+                    params_loss = {params: 0 for params in params_list}
+                    for params in params_list:
+                        league_params[league] = {'init_mu': params[0],
+                                                 'init_rd': params[1],
+                                                 'update_rd': params[2],
+                                                 'lift_update_mu': params[3],
+                                                 'home_advantage': params[4],
+                                                 'pandemic_home_advantage': params[5],
+                                                 'new_team_update_mu': params[6]}
 
-                    params_loss[params] = self.calculate_loss(results, league_params, team_leagues_all,
-                                                              missed_prev, changed, same, indexes_for_update, draw_inclination)
+                        params_loss[params] = self.calculate_loss(results, league_params, team_leagues_all,
+                                                                  missed_prev, changed, same, indexes_for_update, draw_inclination)
 
-                optimal_params = min(params_loss, key=params_loss.get)
+                    optimal_params = min(params_loss, key=params_loss.get)
 
-                optimal_params_dict = {'init_mu': optimal_params[0],
-                                       'init_rd': optimal_params[1],
-                                       'update_rd': optimal_params[2],
-                                       'lift_update_mu': optimal_params[3],
-                                       'home_advantage': optimal_params[4],
-                                       'pandemic_home_advantage': optimal_params[5],
-                                       'new_team_update_mu': optimal_params[6]}
+                    if current_loss - params_loss[optimal_params] > 0:
 
-                league_params[league] = optimal_params_dict
+                        optimal_params_dict = {'init_mu': optimal_params[0],
+                                               'init_rd': optimal_params[1],
+                                               'update_rd': optimal_params[2],
+                                               'lift_update_mu': optimal_params[3],
+                                               'home_advantage': optimal_params[4],
+                                               'pandemic_home_advantage': optimal_params[5],
+                                               'new_team_update_mu': optimal_params[6]}
 
-                print(league, round(current_loss - params_loss[optimal_params], 1))
-                print(optimal_params_dict)
-                current_loss = params_loss[optimal_params]
+                        league_params[league] = optimal_params_dict
 
-                joblib.dump(league_params, 'data/league_params.pkl')
+                        print(league, round(current_loss - params_loss[optimal_params], 2))
+                        print(optimal_params_dict)
+                        current_loss = params_loss[optimal_params]
+
+                        joblib.dump(league_params, 'data/league_params.pkl')
+
+                    else:
+                        not_improved_leagues.add(league)
+                        print(league, 'Not Improved')
+                        if len(not_improved_leagues) > 20:
+                            print([league for league in league_params if league not in not_improved_leagues])
 
         return league_params
 
