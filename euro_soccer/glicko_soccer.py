@@ -101,7 +101,7 @@ class GlickoSoccer(object):
         return team_leagues
 
     def _remove_matches_with_unknown_team(self, results: pd.DataFrame) -> pd.DataFrame:
-        """Remove matches between teams from leagues we dont know anything about."""
+        """Remove matches between teams from leagues we don't know anything about."""
         for season in results['season'].unique():
             team_leagues = self._team_leagues(results, season)
 

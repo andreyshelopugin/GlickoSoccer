@@ -68,3 +68,10 @@ class DataPreprocessor(object):
                                                                      'super_cups': 4})
 
         return matches
+
+    def test_data(self, matches: pd.DataFrame):
+        """"""
+        count_matches = (matches
+                         .groupby(['country', 'tournament_type', 'season'])
+                         ['index']
+                         .count())
