@@ -7,86 +7,22 @@ import pandas as pd
 
 from glicko2 import Glicko2, Rating
 from utils.metrics import three_outcomes_log_loss
-from euro_soccer.draw_model import DrawLightGBM
 
 
 class GlickoSoccer(object):
 
-    def __init__(self, init_mu=1500, init_rd=140, update_rd=34, lift_update_mu=0, home_advantage=28,
-                 pandemic_home_advantage=19, draw_inclination=-0.5417, new_team_update_mu=-42):
+    def __init__(self, init_mu=1500, init_rd=140, update_rd=34, first_lift_update_mu=20, second_lift_update_mu=-20,
+                 home_advantage=28, pandemic_home_advantage=19, draw_inclination=-0.5417, new_team_update_mu=-42):
         self.init_mu = init_mu
         self.init_rd = init_rd
-        self.lift_update_mu = lift_update_mu
+        self.first_lift_update_mu = first_lift_update_mu
+        self.second_lift_update_mu = second_lift_update_mu
         self.update_rd = update_rd
         self.home_advantage = home_advantage
         self.pandemic_home_advantage = pandemic_home_advantage
         self.draw_inclination = draw_inclination
         self.new_team_update_mu = new_team_update_mu
         self.euro_cups = {'Champions League', 'Europa League', 'Europa Conference League'}
-
-    def preprocessing(self, results: pd.DataFrame) -> pd.DataFrame:
-        """"""
-
-        results['home_team'] = results['home_team'].map(lambda x: x.replace("'", "").strip())
-        results['away_team'] = results['away_team'].map(lambda x: x.replace("'", "").strip())
-
-        results = results.loc[results['home_score'] != '-']
-
-        # technical wins
-        results = results.loc[results['notes'] != 'Awrd']
-
-        results[['home_score', 'away_score']] = results[['home_score', 'away_score']].to_numpy('int')
-
-        conditions = [(results['home_score'] > results['away_score']),
-                      (results['home_score'] == results['away_score']),
-                      (results['home_score'] < results['away_score'])]
-
-        outcomes = ['H', 'D', 'A']
-        results['outcome'] = np.select(conditions, outcomes)
-
-        # pandemic
-        is_pandemic = (results['date'] > '2020-03-03') & (results['date'] < '2021-06-06')
-        results['is_pandemic'] = np.where(is_pandemic, 1, 0)
-
-        short_tournaments = ['Azerbaijan. First Division',
-                             'Faroe Islands. 1. Deild',
-                             'Armenia. First League',
-                             'Uzbekistan. Super League',
-                             'Uzbekistan. Super League',
-                             'Uzbekistan. Uzbekistan Cup',
-                             'Uzbekistan. Super Cup']
-
-        results = results.loc[~results['tournament'].isin(short_tournaments)]
-
-        results = self._remove_matches_with_unknown_team(results)
-
-        results = self.draw_probability(results)
-
-        results = self._get_finals(results)
-
-        results = (results
-                   .drop(columns=['home_score', 'away_score', 'notes'])
-                   .sort_values(['date']))
-
-        return results
-
-    @staticmethod
-    def draw_probability(results: pd.DataFrame, is_actual=False) -> pd.DataFrame:
-        """"""
-        if is_actual:
-            DrawLightGBM().actual_predictions(results)
-
-        draw_predictions = joblib.load('data/skellam_predictions.pkl')
-
-        draw_predictions = dict(zip(draw_predictions['index'], draw_predictions['draw']))
-
-        results['draw_probability'] = results['index'].map(draw_predictions)
-
-        mean_draw = results.loc[results['outcome'] == 'D'].shape[0] / results.shape[0]
-
-        results['draw_probability'] = results['draw_probability'].fillna(mean_draw)
-
-        return results
 
     @staticmethod
     def _team_leagues(results: pd.DataFrame, season: int) -> dict:
@@ -99,40 +35,6 @@ class GlickoSoccer(object):
         team_leagues.update(dict(zip(no_cups['away_team'], no_cups['tournament'])))
 
         return team_leagues
-
-    def _remove_matches_with_unknown_team(self, results: pd.DataFrame) -> pd.DataFrame:
-        """Remove matches between teams from leagues we don't know anything about."""
-        for season in results['season'].unique():
-            team_leagues = self._team_leagues(results, season)
-
-            known_teams = team_leagues.keys()
-
-            is_both_teams_known = ((results['season'] == season)
-                                   & results['home_team'].isin(known_teams)
-                                   & results['away_team'].isin(known_teams))
-
-            results = results.loc[(results['season'] != season) | is_both_teams_known]
-
-        return results
-
-    @staticmethod
-    def _get_finals(results: pd.DataFrame) -> pd.DataFrame:
-        """Get final matches for neutral field games detection"""
-
-        max_season = results['season'].max()
-
-        finals = (results
-                  .loc[(results['season'] != max_season) & (results['tournament_type'] == 3)]
-                  .sort_values(['tournament', 'season', 'date'])
-                  .drop_duplicates(['season', 'tournament'], keep='last')
-                  ['index']
-                  .unique())
-
-        results['tournament_type'] = np.where(results['index'].isin(finals) | (results['notes'] == 'Neutral'),
-                                              4,
-                                              results['tournament_type'])
-
-        return results
 
     def _team_international_cups(self, results: pd.DataFrame, season: int) -> set:
         """
@@ -147,16 +49,26 @@ class GlickoSoccer(object):
     def _league_params_initialization(self, results: pd.DataFrame) -> dict:
         """"""
         leagues = results.loc[results['tournament_type'].isin([1, 2]), 'tournament'].unique()
+        first_leagues = set(results.loc[results['tournament_type'] == 1, 'tournament'])
 
         league_params = dict()
         for league in leagues:
-            league_params[league] = {'init_mu': self.init_mu,
-                                     'init_rd': self.init_rd,
-                                     'update_rd': self.update_rd,
-                                     'lift_update_mu': self.lift_update_mu,
-                                     'home_advantage': self.home_advantage,
-                                     'pandemic_home_advantage': self.pandemic_home_advantage,
-                                     'new_team_update_mu': self.new_team_update_mu}
+            if league in first_leagues:
+                league_params[league] = {'init_mu': self.init_mu+50,
+                                         'init_rd': self.init_rd,
+                                         'update_rd': self.update_rd,
+                                         'lift_update_mu': self.first_lift_update_mu,
+                                         'home_advantage': self.home_advantage,
+                                         'pandemic_home_advantage': self.pandemic_home_advantage,
+                                         'new_team_update_mu': self.new_team_update_mu}
+            else:
+                league_params[league] = {'init_mu': self.init_mu-50,
+                                         'init_rd': self.init_rd,
+                                         'update_rd': self.update_rd,
+                                         'lift_update_mu': self.second_lift_update_mu,
+                                         'home_advantage': self.home_advantage,
+                                         'pandemic_home_advantage': self.pandemic_home_advantage,
+                                         'new_team_update_mu': self.new_team_update_mu}
 
         return league_params
 
@@ -386,14 +298,14 @@ class GlickoSoccer(object):
             # get current team ratings
             home_rating, away_rating = ratings[home_team], ratings[away_team]
 
-            if season in {2019, 2020, 2021}:
+            if season in {2019, 2020, 2021, 2022}:
                 # calculate outcome probabilities
                 win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating,
                                                                                           away_rating,
                                                                                           home_advantage,
                                                                                           skellam_draw_probability)
 
-                log_loss_value += three_outcomes_log_loss(outcome, win_probability, tie_probability, loss_probability)
+                log_loss_value += three_outcomes_log_loss(win_probability, tie_probability, loss_probability, outcome)
 
             # update team ratings
             ratings[home_team], ratings[away_team] = glicko.rate(home_rating,
@@ -430,20 +342,20 @@ class GlickoSoccer(object):
 
         not_improved_leagues = set()
         for i in range(number_iterations):
-            # draw_inclination_list = np.linspace(draw_inclination - 0.01, draw_inclination + 0.01, 6)
-            #
-            # for draw in draw_inclination_list:
-            #     loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same,
-            #                                indexes_for_update, draw)
-            #
-            #     if loss < current_loss:
-            #         current_loss = loss
-            #         draw_inclination = draw
-            #
-            # print('############################################################################')
-            # print()
-            # print("Best Draw Parameter:", draw_inclination)
-            # print()
+            draw_inclination_list = np.linspace(draw_inclination - 0.01, draw_inclination + 0.01, 6)
+
+            for draw in draw_inclination_list:
+                loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same,
+                                           indexes_for_update, draw)
+
+                if loss < current_loss:
+                    current_loss = loss
+                    draw_inclination = draw
+
+            print('############################################################################')
+            print()
+            print("Best Draw Parameter:", draw_inclination)
+            print()
 
             for league, params in league_params.items():
 
@@ -457,13 +369,13 @@ class GlickoSoccer(object):
                     pandemic_home_advantage = params['pandemic_home_advantage']
                     new_team_update_mu = params['new_team_update_mu']
 
-                    init_mu_list = [init_mu - 10, init_mu + 10]
+                    init_mu_list = [init_mu - 40, init_mu + 40]
                     init_rd_list = [init_rd]
                     update_rd_list = [update_rd]
-                    lift_update_mu_list = [lift_update_mu]
+                    lift_update_mu_list = [lift_update_mu - 20, lift_update_mu + 20]
                     home_advantage_list = [home_advantage]
                     pandemic_home_advantage_list = [pandemic_home_advantage]
-                    new_team_update_mu_list = [new_team_update_mu]
+                    new_team_update_mu_list = [new_team_update_mu - 20, new_team_update_mu + 20]
 
                     init_rd_list = [x for x in init_rd_list if x >= 100]
                     update_rd_list = [x for x in update_rd_list if x >= 20]
@@ -510,7 +422,6 @@ class GlickoSoccer(object):
                     optimal_params = min(params_loss, key=params_loss.get)
 
                     if current_loss - params_loss[optimal_params] > 0:
-
                         optimal_params_dict = {'init_mu': optimal_params[0],
                                                'init_rd': optimal_params[1],
                                                'update_rd': optimal_params[2],
@@ -521,17 +432,17 @@ class GlickoSoccer(object):
 
                         league_params[league] = optimal_params_dict
 
-                        print(league, round(current_loss - params_loss[optimal_params], 2))
+                        print(league, "Loss down by:", round(current_loss - params_loss[optimal_params], 2))
                         print(optimal_params_dict)
                         current_loss = params_loss[optimal_params]
 
                         joblib.dump(league_params, 'data/league_params.pkl')
 
-                    else:
-                        not_improved_leagues.add(league)
-                        print(league, 'Not Improved')
-                        if len(not_improved_leagues) > 20:
-                            print([league for league in league_params if league not in not_improved_leagues])
+                    # else:
+                    #     not_improved_leagues.add(league)
+                    #     print(league, 'Not Improved')
+                    #     if len(not_improved_leagues) > 20:
+                    #         print([league for league in league_params if league not in not_improved_leagues])
 
         return league_params
 

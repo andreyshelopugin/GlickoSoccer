@@ -73,7 +73,7 @@ class GlickoExpectedGoals(object):
             win_probability, tie_probability, loss_probability = glicko.probabilities(ratings[home_team], ratings[away_team],
                                                                                       home_advantage)
 
-            log_loss_value += three_outcomes_log_loss(outcome, win_probability, tie_probability, loss_probability)
+            log_loss_value += three_outcomes_log_loss(win_probability, tie_probability, loss_probability, outcome)
 
         log_loss_value /= number_matches
 
