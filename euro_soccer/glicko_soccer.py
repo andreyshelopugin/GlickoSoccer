@@ -11,18 +11,19 @@ from utils.metrics import three_outcomes_log_loss
 
 class GlickoSoccer(object):
 
-    def __init__(self, init_mu=1500, init_rd=140, update_rd=34, first_lift_update_mu=20, second_lift_update_mu=-20,
-                 home_advantage=28, pandemic_home_advantage=19, draw_inclination=-0.5417, new_team_update_mu=-42):
+    def __init__(self, init_mu=1500, init_rd=140, volatility=0.098, update_rd=34, lift_update_mu=20,
+                 home_advantage=28, pandemic_home_advantage=19, draw_inclination=-0.5537, new_team_update_mu=-42):
         self.init_mu = init_mu
         self.init_rd = init_rd
-        self.first_lift_update_mu = first_lift_update_mu
-        self.second_lift_update_mu = second_lift_update_mu
+        self.volatility = volatility
+        self.lift_update_mu = lift_update_mu
         self.update_rd = update_rd
         self.home_advantage = home_advantage
         self.pandemic_home_advantage = pandemic_home_advantage
         self.draw_inclination = draw_inclination
         self.new_team_update_mu = new_team_update_mu
         self.euro_cups = {'Champions League', 'Europa League', 'Europa Conference League'}
+        self.first_leagues = None
 
     @staticmethod
     def _team_leagues(results: pd.DataFrame, season: int) -> dict:
@@ -54,18 +55,18 @@ class GlickoSoccer(object):
         league_params = dict()
         for league in leagues:
             if league in first_leagues:
-                league_params[league] = {'init_mu': self.init_mu+50,
+                league_params[league] = {'init_mu': self.init_mu + 100,
                                          'init_rd': self.init_rd,
                                          'update_rd': self.update_rd,
-                                         'lift_update_mu': self.first_lift_update_mu,
+                                         'lift_update_mu': self.lift_update_mu,
                                          'home_advantage': self.home_advantage,
                                          'pandemic_home_advantage': self.pandemic_home_advantage,
                                          'new_team_update_mu': self.new_team_update_mu}
             else:
-                league_params[league] = {'init_mu': self.init_mu-50,
+                league_params[league] = {'init_mu': self.init_mu - 100,
                                          'init_rd': self.init_rd,
                                          'update_rd': self.update_rd,
-                                         'lift_update_mu': self.second_lift_update_mu,
+                                         'lift_update_mu': -self.lift_update_mu,
                                          'home_advantage': self.home_advantage,
                                          'pandemic_home_advantage': self.pandemic_home_advantage,
                                          'new_team_update_mu': self.new_team_update_mu}
@@ -87,16 +88,15 @@ class GlickoSoccer(object):
     def _rating_initialization(self, results: pd.DataFrame, team_params: dict) -> dict:
         """"""
         seasons = sorted(results['season'].unique())
-
         ratings = dict()
         for season in seasons:
             for team, params in team_params[season].items():
                 if team not in ratings:
-                    ratings[team] = Rating(mu=params['init_mu'], rd=params['init_rd'])
+                    ratings[team] = Rating(mu=params['init_mu'], rd=params['init_rd'], volatility=self.volatility)
 
         # normalization as way for fighting with inflation
         mean_rating = np.mean([rating.mu for _, rating in ratings.items()])
-        ratings = {team: Rating(mu=self.init_mu * rating.mu / mean_rating, rd=rating.rd)
+        ratings = {team: Rating(mu=self.init_mu * rating.mu / mean_rating, rd=rating.rd, volatility=self.volatility)
                    for team, rating in ratings.items()}
 
         return ratings
@@ -263,10 +263,10 @@ class GlickoSoccer(object):
 
     def calculate_loss(self, results: pd.DataFrame, league_params: dict, team_leagues_all: dict,
                        missed_previous_season: dict, changed_league: dict, same_league: dict,
-                       indexes_for_update_ratings: set, draw_inclination: float) -> float:
+                       indexes_for_update_ratings: set) -> float:
         """"""
 
-        glicko = Glicko2(draw_inclination=draw_inclination)
+        glicko = Glicko2(draw_inclination=self.draw_inclination)
 
         team_params = {season: self._team_params(season, league_params, team_leagues_all) for season
                        in results['season'].unique()}
@@ -298,7 +298,7 @@ class GlickoSoccer(object):
             # get current team ratings
             home_rating, away_rating = ratings[home_team], ratings[away_team]
 
-            if season in {2019, 2020, 2021, 2022}:
+            if season in {2020, 2021, 2022}:
                 # calculate outcome probabilities
                 win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating,
                                                                                           away_rating,
@@ -316,6 +316,33 @@ class GlickoSoccer(object):
 
         return log_loss_value
 
+    def _params_regularization(self, league: str, init_rds: list, update_rds: list,
+                               home_advantages: list, pandemic_home_advantages: list,
+                               lift_update_mus: list, new_team_update_mus: list):
+        """"""
+        init_rds = [x for x in init_rds if x >= 100]
+        update_rds = [x for x in update_rds if x >= 20]
+        home_advantages = [x for x in home_advantages if x >= 0]
+        pandemic_home_advantages = [x for x in pandemic_home_advantages if x >= 0]
+
+        if league in self.first_leagues:
+            lift_update_mus = [x for x in lift_update_mus if 0 <= x <= 100]
+            new_team_update_mus = [0]
+        else:
+            lift_update_mus = [x for x in lift_update_mus if -100 <= x <= 0]
+            new_team_update_mus = [x for x in new_team_update_mus if 0 >= x >= -150]
+
+        if not lift_update_mus:
+            lift_update_mus = [0]
+
+        if not new_team_update_mus:
+            new_team_update_mus = [0]
+
+        if league == 'Netherlands. Eerste Divisie':
+            new_team_update_mus = [0]
+
+        return init_rds, update_rds, home_advantages, pandemic_home_advantages, lift_update_mus, new_team_update_mus
+
     def fit_params(self, results: pd.DataFrame, number_iterations: int, is_params_initialization: True):
         """"""
 
@@ -324,7 +351,7 @@ class GlickoSoccer(object):
         else:
             league_params = joblib.load('data/league_params.pkl')
 
-        first_leagues = set(results.loc[results['tournament_type'] == 1, 'tournament'])
+        self.first_leagues = set(results.loc[results['tournament_type'] == 1, 'tournament'])
 
         seasons = set(results['season'])
 
@@ -333,33 +360,56 @@ class GlickoSoccer(object):
         missed_prev, changed, same, indexes_for_update = self._indexes_for_update(results)
         results = results.drop(columns=['date', 'country'])
 
-        draw_inclination = self.draw_inclination
-
-        current_loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same,
-                                           indexes_for_update, draw_inclination)
+        current_loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same, indexes_for_update)
 
         print("Current Loss:", current_loss)
 
-        not_improved_leagues = set()
         for i in range(number_iterations):
-            draw_inclination_list = np.linspace(draw_inclination - 0.01, draw_inclination + 0.01, 6)
+            draw_inclination_list = np.linspace(self.draw_inclination - 0.01, self.draw_inclination + 0.01, 6)
 
+            best_draw = self.draw_inclination
             for draw in draw_inclination_list:
-                loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same,
-                                           indexes_for_update, draw)
-
+                self.draw_inclination = draw
+                loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same, indexes_for_update)
                 if loss < current_loss:
                     current_loss = loss
-                    draw_inclination = draw
+                    best_draw = draw
+
+            self.draw_inclination = best_draw
 
             print('############################################################################')
             print()
-            print("Best Draw Parameter:", draw_inclination)
+            print("Best Draw Parameter:", self.draw_inclination)
+            print()
+
+            volatility_list = np.linspace(self.volatility - 0.01, self.volatility + 0.01, 6)
+
+            best_volatility = self.volatility
+            for volatility in volatility_list:
+                self.volatility = volatility
+                loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same, indexes_for_update)
+                if loss < current_loss:
+                    current_loss = loss
+                    best_volatility = volatility
+
+            self.volatility = best_volatility
+
+            print('############################################################################')
+            print()
+            print("Best Volatility Parameter:", self.volatility)
             print()
 
             for league, params in league_params.items():
 
-                if league in league not in not_improved_leagues:
+                # if league in {'Faroe Islands. Premier League', 'Cyprus. First Division', 'Norway. Eliteserien',
+                #               'Belarus. Vysshaya Liga', 'Luxembourg. National Division', 'Kosovo. Superliga', 'Russia. Premier League'}:
+
+                # if league in {'England. Premier League', 'Italy. Serie A', 'Spain. LaLiga', 'Portugal. Primeira Liga',
+                #               'Germany. Bundesliga', 'France. Ligue 1', 'Italy. Serie B', 'Germany. 2. Bundesliga',
+                #               'France. Ligue 2', 'Portugal. Liga Portugal 2', 'England. Championship',
+                #               'Spain. LaLiga2'}:
+
+                if True:
 
                     init_mu = params['init_mu']
                     init_rd = params['init_rd']
@@ -369,42 +419,30 @@ class GlickoSoccer(object):
                     pandemic_home_advantage = params['pandemic_home_advantage']
                     new_team_update_mu = params['new_team_update_mu']
 
-                    init_mu_list = [init_mu - 40, init_mu + 40]
-                    init_rd_list = [init_rd]
-                    update_rd_list = [update_rd]
-                    lift_update_mu_list = [lift_update_mu - 20, lift_update_mu + 20]
-                    home_advantage_list = [home_advantage]
-                    pandemic_home_advantage_list = [pandemic_home_advantage]
-                    new_team_update_mu_list = [new_team_update_mu - 20, new_team_update_mu + 20]
+                    init_mus = [init_mu - 10, init_mu, init_mu + 10]
+                    init_rds = [init_rd]
+                    update_rds = [update_rd - 10, update_rd, update_rd + 10]
+                    lift_update_mus = [lift_update_mu - 10, lift_update_mu, lift_update_mu + 10]
+                    home_advantages = [home_advantage]
+                    pandemic_home_advantages = [pandemic_home_advantage]
+                    new_team_update_mus = [new_team_update_mu - 10, new_team_update_mu, new_team_update_mu + 10]
 
-                    init_rd_list = [x for x in init_rd_list if x >= 100]
-                    update_rd_list = [x for x in update_rd_list if x >= 20]
-                    home_advantage_list = [x for x in home_advantage_list if x >= 0]
-                    pandemic_home_advantage_list = [x for x in pandemic_home_advantage_list if x >= 0]
+                    init_rds, update_rds, home_advantages, pandemic_home_advantages, lift_update_mus, new_team_update_mus = self._params_regularization(
+                        league,
+                        init_rds,
+                        update_rds,
+                        home_advantages,
+                        pandemic_home_advantages,
+                        lift_update_mus,
+                        new_team_update_mus)
 
-                    if league in first_leagues:
-                        lift_update_mu_list = [x for x in lift_update_mu_list if 0 <= x <= 100]
-                        new_team_update_mu_list = [0]
-                    else:
-                        lift_update_mu_list = [x for x in lift_update_mu_list if -100 <= x <= 0]
-                        new_team_update_mu_list = [x for x in new_team_update_mu_list if 0 >= x >= -150]
-
-                    if not lift_update_mu_list:
-                        lift_update_mu_list = [0]
-
-                    if not new_team_update_mu_list:
-                        new_team_update_mu_list = [0]
-
-                    if league == 'Netherlands. Eerste Divisie':
-                        new_team_update_mu_list = [0]
-
-                    params_list = list(product(init_mu_list,
-                                               init_rd_list,
-                                               update_rd_list,
-                                               lift_update_mu_list,
-                                               home_advantage_list,
-                                               pandemic_home_advantage_list,
-                                               new_team_update_mu_list))
+                    params_list = list(product(init_mus,
+                                               init_rds,
+                                               update_rds,
+                                               lift_update_mus,
+                                               home_advantages,
+                                               pandemic_home_advantages,
+                                               new_team_update_mus))
 
                     params_loss = {params: 0 for params in params_list}
                     for params in params_list:
@@ -416,8 +454,8 @@ class GlickoSoccer(object):
                                                  'pandemic_home_advantage': params[5],
                                                  'new_team_update_mu': params[6]}
 
-                        params_loss[params] = self.calculate_loss(results, league_params, team_leagues_all,
-                                                                  missed_prev, changed, same, indexes_for_update, draw_inclination)
+                        params_loss[params] = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same,
+                                                                  indexes_for_update)
 
                     optimal_params = min(params_loss, key=params_loss.get)
 
@@ -437,12 +475,6 @@ class GlickoSoccer(object):
                         current_loss = params_loss[optimal_params]
 
                         joblib.dump(league_params, 'data/league_params.pkl')
-
-                    # else:
-                    #     not_improved_leagues.add(league)
-                    #     print(league, 'Not Improved')
-                    #     if len(not_improved_leagues) > 20:
-                    #         print([league for league in league_params if league not in not_improved_leagues])
 
         return league_params
 
