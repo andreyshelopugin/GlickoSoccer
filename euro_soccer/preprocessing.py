@@ -159,17 +159,13 @@ class DataPreprocessor(object):
         is_pandemic = (matches['date'] > '2020-03-03') & (matches['date'] < '2021-06-06')
         matches['is_pandemic'] = np.where(is_pandemic, 1, 0)
 
-        short_tournaments = [
-            'Azerbaijan. First Division',
-            'Faroe Islands. 1. Deild',
-            'Armenia. First League',
-            # 'Uzbekistan. Super League',
-            # 'Uzbekistan. Super League',
-            # 'Uzbekistan. Uzbekistan Cup',
-            # 'Uzbekistan. Super Cup'
-        ]
+        # short_tournaments = [
+        #     'Azerbaijan. First Division',
+        #     'Faroe Islands. 1. Deild',
+        #     # 'Armenia. First League',
+        # ]
 
-        matches = matches.loc[~matches['tournament'].isin(short_tournaments)]
+        # matches = matches.loc[~matches['tournament'].isin(short_tournaments)]
 
         matches = self._remove_matches_with_unknown_team(matches)
 

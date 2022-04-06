@@ -11,7 +11,7 @@ from utils.metrics import three_outcomes_log_loss
 
 class GlickoSoccer(object):
 
-    def __init__(self, init_mu=1500, init_rd=140, volatility=0.098, update_rd=34, lift_update_mu=20,
+    def __init__(self, init_mu=1500, init_rd=150, volatility=0.1, update_rd=40, lift_update_mu=30,
                  home_advantage=28, pandemic_home_advantage=19, draw_inclination=-0.5537, new_team_update_mu=-42):
         self.init_mu = init_mu
         self.init_rd = init_rd
@@ -24,6 +24,10 @@ class GlickoSoccer(object):
         self.new_team_update_mu = new_team_update_mu
         self.euro_cups = {'Champions League', 'Europa League', 'Europa Conference League'}
         self.first_leagues = None
+        self.top_seven = {'England. Premier League', 'Italy. Serie A', 'Spain. LaLiga', 'Netherlands. Eredivisie',
+                          'Portugal. Primeira Liga', 'Germany. Bundesliga', 'France. Ligue 1'}
+        self.top_seven_second = {"Spain. LaLiga2", "Germany. 2. Bundesliga", "Italy. Serie B", "France. Ligue 2",
+                                 "Portugal. Liga Portugal 2", "Netherlands. Eerste Divisie", "England. Championship"}
 
     @staticmethod
     def _team_leagues(results: pd.DataFrame, season: int) -> dict:
@@ -37,33 +41,43 @@ class GlickoSoccer(object):
 
         return team_leagues
 
-    def _team_international_cups(self, results: pd.DataFrame, season: int) -> set:
-        """
-        """
-
-        international_cups = results.loc[results['tournament'].isin(self.euro_cups) & (results['season'] == season)]
-
-        international_teams = set(international_cups['home_team']).union(set(international_cups['away_team']))
-
-        return international_teams
-
     def _league_params_initialization(self, results: pd.DataFrame) -> dict:
         """"""
-        leagues = results.loc[results['tournament_type'].isin([1, 2]), 'tournament'].unique()
         first_leagues = set(results.loc[results['tournament_type'] == 1, 'tournament'])
+        second_leagues = set(results.loc[results['tournament_type'] == 2, 'tournament'])
+
+        leagues = first_leagues.union(second_leagues)
 
         league_params = dict()
         for league in leagues:
-            if league in first_leagues:
+            if league in self.top_seven:
+                league_params[league] = {'init_mu': self.init_mu + 300,
+                                         'init_rd': self.init_rd,
+                                         'update_rd': self.update_rd,
+                                         'lift_update_mu': self.lift_update_mu,
+                                         'home_advantage': self.home_advantage,
+                                         'pandemic_home_advantage': self.pandemic_home_advantage,
+                                         'new_team_update_mu': 0}
+
+            elif league in self.top_seven_second:
+                league_params[league] = {'init_mu': self.init_mu,
+                                         'init_rd': self.init_rd,
+                                         'update_rd': self.update_rd,
+                                         'lift_update_mu': -self.lift_update_mu,
+                                         'home_advantage': self.home_advantage,
+                                         'pandemic_home_advantage': self.pandemic_home_advantage,
+                                         'new_team_update_mu': self.new_team_update_mu}
+
+            elif league in first_leagues:
                 league_params[league] = {'init_mu': self.init_mu + 100,
                                          'init_rd': self.init_rd,
                                          'update_rd': self.update_rd,
                                          'lift_update_mu': self.lift_update_mu,
                                          'home_advantage': self.home_advantage,
                                          'pandemic_home_advantage': self.pandemic_home_advantage,
-                                         'new_team_update_mu': self.new_team_update_mu}
+                                         'new_team_update_mu': 0}
             else:
-                league_params[league] = {'init_mu': self.init_mu - 100,
+                league_params[league] = {'init_mu': self.init_mu - 200,
                                          'init_rd': self.init_rd,
                                          'update_rd': self.update_rd,
                                          'lift_update_mu': -self.lift_update_mu,
@@ -78,12 +92,7 @@ class GlickoSoccer(object):
         """
             For each team get league params.
         """
-
-        season_team_leagues = team_leagues_all[season]
-
-        team_params = {team: league_params[league] for team, league in season_team_leagues.items()}
-
-        return team_params
+        return {team: league_params[league] for team, league in team_leagues_all[season].items()}
 
     def _rating_initialization(self, results: pd.DataFrame, team_params: dict) -> dict:
         """"""
@@ -163,8 +172,7 @@ class GlickoSoccer(object):
 
         return missed_previous_season, changed_league, same_league
 
-    @staticmethod
-    def _season_update_rating(ratings: dict, home_team: str, away_team: str, index: int,
+    def _season_update_rating(self, ratings: dict, home_team: str, away_team: str, index: int,
                               home_params: dict, away_params: dict,
                               missed_previous_season: Dict[str, set], changed_league: Dict[str, set],
                               same_league: Dict[str, set]) -> dict:
@@ -177,16 +185,21 @@ class GlickoSoccer(object):
 
             if team in missed_previous_season:
                 if index in missed_previous_season[team]:
-                    ratings[team] = Rating(mu=params['init_mu'] + params['new_team_update_mu'], rd=params['init_rd'])
+                    ratings[team] = Rating(mu=params['init_mu'] + params['new_team_update_mu'],
+                                           rd=params['init_rd'],
+                                           volatility=self.volatility)
 
             elif team in changed_league:
                 if index in changed_league[team]:
                     ratings[team] = Rating(mu=ratings[team].mu + params['lift_update_mu'],
-                                           rd=ratings[team].rd + params['update_rd'])
+                                           rd=ratings[team].rd + params['update_rd'],
+                                           volatility=self.volatility)
 
             elif team in same_league:
                 if index in same_league[team]:
-                    ratings[team] = Rating(mu=ratings[team].mu, rd=ratings[team].rd + params['update_rd'])
+                    ratings[team] = Rating(mu=ratings[team].mu,
+                                           rd=ratings[team].rd + params['update_rd'],
+                                           volatility=self.volatility)
 
         return ratings
 
@@ -298,7 +311,31 @@ class GlickoSoccer(object):
             # get current team ratings
             home_rating, away_rating = ratings[home_team], ratings[away_team]
 
-            if season in {2020, 2021, 2022}:
+            # if tournament_type == 3:
+            #     if (team_leagues_all[season][home_team] == "Cyprus. First Division"
+            #             or team_leagues_all[season][away_team] == "Cyprus. First Division"
+            #             or team_leagues_all[season][home_team] == "Cyprus. Division 2"
+            #             or team_leagues_all[season][away_team] == "Cyprus. Division 2"):
+            #         if home_params != away_params:
+            #             print(season,
+            #                   team_leagues_all[season][home_team],
+            #                   team_leagues_all[season][away_team],
+            #                   outcome
+            #
+            #                   )
+
+            # if tournament_type == 3:
+            #     if (home_team == "AEK Larnaca"
+            #             or away_team == "AEK Larnaca"):
+            #         if home_params != away_params:
+            #             print(season,
+            #                   team_leagues_all[season][home_team],
+            #                   team_leagues_all[season][away_team],
+            #                   outcome
+            #
+            #                   )
+
+            if season in {2019, 2020, 2021}:
                 # calculate outcome probabilities
                 win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating,
                                                                                           away_rating,
@@ -317,20 +354,20 @@ class GlickoSoccer(object):
         return log_loss_value
 
     def _params_regularization(self, league: str, init_rds: list, update_rds: list,
-                               home_advantages: list, pandemic_home_advantages: list,
-                               lift_update_mus: list, new_team_update_mus: list):
+                               homes: list, pandemic_homes: list,
+                               lift_update_mus: list, new_team_update_mus: list) -> tuple:
         """"""
         init_rds = [x for x in init_rds if x >= 100]
         update_rds = [x for x in update_rds if x >= 20]
-        home_advantages = [x for x in home_advantages if x >= 0]
-        pandemic_home_advantages = [x for x in pandemic_home_advantages if x >= 0]
+        homes = [x for x in homes if x >= 5]
+        pandemic_homes = [x for x in pandemic_homes if x >= 0]
 
         if league in self.first_leagues:
             lift_update_mus = [x for x in lift_update_mus if 0 <= x <= 100]
             new_team_update_mus = [0]
         else:
             lift_update_mus = [x for x in lift_update_mus if -100 <= x <= 0]
-            new_team_update_mus = [x for x in new_team_update_mus if 0 >= x >= -150]
+            new_team_update_mus = [x for x in new_team_update_mus if -10 >= x >= -150]
 
         if not lift_update_mus:
             lift_update_mus = [0]
@@ -341,7 +378,7 @@ class GlickoSoccer(object):
         if league == 'Netherlands. Eerste Divisie':
             new_team_update_mus = [0]
 
-        return init_rds, update_rds, home_advantages, pandemic_home_advantages, lift_update_mus, new_team_update_mus
+        return init_rds, update_rds, homes, pandemic_homes, lift_update_mus, new_team_update_mus
 
     def fit_params(self, results: pd.DataFrame, number_iterations: int, is_params_initialization: True):
         """"""
@@ -401,14 +438,6 @@ class GlickoSoccer(object):
 
             for league, params in league_params.items():
 
-                # if league in {'Faroe Islands. Premier League', 'Cyprus. First Division', 'Norway. Eliteserien',
-                #               'Belarus. Vysshaya Liga', 'Luxembourg. National Division', 'Kosovo. Superliga', 'Russia. Premier League'}:
-
-                # if league in {'England. Premier League', 'Italy. Serie A', 'Spain. LaLiga', 'Portugal. Primeira Liga',
-                #               'Germany. Bundesliga', 'France. Ligue 1', 'Italy. Serie B', 'Germany. 2. Bundesliga',
-                #               'France. Ligue 2', 'Portugal. Liga Portugal 2', 'England. Championship',
-                #               'Spain. LaLiga2'}:
-
                 if True:
 
                     init_mu = params['init_mu']
@@ -421,18 +450,18 @@ class GlickoSoccer(object):
 
                     init_mus = [init_mu - 10, init_mu, init_mu + 10]
                     init_rds = [init_rd]
-                    update_rds = [update_rd - 10, update_rd, update_rd + 10]
-                    lift_update_mus = [lift_update_mu - 10, lift_update_mu, lift_update_mu + 10]
-                    home_advantages = [home_advantage]
-                    pandemic_home_advantages = [pandemic_home_advantage]
-                    new_team_update_mus = [new_team_update_mu - 10, new_team_update_mu, new_team_update_mu + 10]
+                    update_rds = [update_rd]
+                    lift_update_mus = [lift_update_mu]
+                    homes = [home_advantage]
+                    pandemic_homes = [pandemic_home_advantage]
+                    new_team_update_mus = [new_team_update_mu]
 
-                    init_rds, update_rds, home_advantages, pandemic_home_advantages, lift_update_mus, new_team_update_mus = self._params_regularization(
+                    init_rds, update_rds, homes, pandemic_homes, lift_update_mus, new_team_update_mus = self._params_regularization(
                         league,
                         init_rds,
                         update_rds,
-                        home_advantages,
-                        pandemic_home_advantages,
+                        homes,
+                        pandemic_homes,
                         lift_update_mus,
                         new_team_update_mus)
 
@@ -440,8 +469,8 @@ class GlickoSoccer(object):
                                                init_rds,
                                                update_rds,
                                                lift_update_mus,
-                                               home_advantages,
-                                               pandemic_home_advantages,
+                                               homes,
+                                               pandemic_homes,
                                                new_team_update_mus))
 
                     params_loss = {params: 0 for params in params_list}

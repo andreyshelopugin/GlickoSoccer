@@ -81,12 +81,12 @@ class GlickoExpectedGoals(object):
 
     def fit_parameters(self, results: pd.DataFrame, tournament: str, seasons: List[int],
                        init_rds: np.ndarray, draw_inclinations: np.ndarray,
-                       home_advantages: np.ndarray) -> Tuple[Tuple[float], float, Dict]:
+                       homes: np.ndarray) -> Tuple[Tuple[float], float, Dict]:
 
         matches = results.loc[(results['tournament'] == tournament) & results['season'].isin(seasons)]
 
         # get all combinations of parameters
-        parameters_list = list(product(init_rds, draw_inclinations, home_advantages))
+        parameters_list = list(product(init_rds, draw_inclinations, homes))
 
         parameters_loss = {parameters: 0 for parameters in parameters_list}
         for parameters in tqdm(parameters_list):
@@ -105,7 +105,7 @@ class GlickoExpectedGoals(object):
         return optimal_parameters, optimal_loss, parameters_loss
 
     def fit_all_parameters(self, init_rds: np.ndarray, draw_inclinations: np.ndarray,
-                           home_advantages: np.ndarray) -> Tuple[dict, dict]:
+                           homes: np.ndarray) -> Tuple[dict, dict]:
         """"""
         matches_list = []
         for tournament in self.tournaments:
@@ -125,12 +125,12 @@ class GlickoExpectedGoals(object):
         xg_params = dict()
         for tournament in self.tournaments:
             optimal_parameters = goals_glicko.fit_parameters(matches, tournament, self.seasons, init_rds, draw_inclinations,
-                                                             home_advantages)
+                                                             homes)
 
             goal_params[tournament] = optimal_parameters[0], optimal_parameters[1]
 
             optimal_parameters = xg_glicko.fit_parameters(matches, tournament, self.seasons, init_rds, draw_inclinations,
-                                                          home_advantages)
+                                                          homes)
 
             xg_params[tournament] = optimal_parameters[0], optimal_parameters[1]
 
