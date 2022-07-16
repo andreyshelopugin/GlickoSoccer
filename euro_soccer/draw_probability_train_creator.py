@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 class TrainCreator(object):
 
-    def __init__(self, test_size=0.2, random_state=7):
+    def __init__(self, test_size=0.1, random_state=7):
         self.test_size = test_size
         self.random_state = random_state
 
@@ -63,6 +63,9 @@ class TrainCreator(object):
         home_mean_score_20 = self.calculate_stats(results, True, 'mean', 20, 10)
         away_mean_score_20 = self.calculate_stats(results, False, 'mean', 20, 10)
 
+        home_mean_score_30 = self.calculate_stats(results, True, 'mean', 30, 20)
+        away_mean_score_30 = self.calculate_stats(results, False, 'mean', 30, 20)
+
         home_median_score_5 = self.calculate_stats(results, True, 'median', 5, 3)
         away_median_score_5 = self.calculate_stats(results, False, 'median', 5, 3)
 
@@ -71,6 +74,9 @@ class TrainCreator(object):
 
         home_median_score_20 = self.calculate_stats(results, True, 'median', 20, 10)
         away_median_score_20 = self.calculate_stats(results, False, 'median', 20, 10)
+
+        home_median_score_30 = self.calculate_stats(results, True, 'median', 30, 20)
+        away_median_score_30 = self.calculate_stats(results, False, 'median', 30, 20)
 
         home_mean_score_5_against = self.calculate_stats(results, True, 'mean', 5, 3, True)
         away_mean_score_5_against = self.calculate_stats(results, False, 'mean', 5, 3, True)
@@ -98,6 +104,9 @@ class TrainCreator(object):
         results['home_mean_score_20'] = results['level_0'].map(home_mean_score_20)
         results['away_mean_score_20'] = results['level_0'].map(away_mean_score_20)
 
+        results['home_mean_score_30'] = results['level_0'].map(home_mean_score_30)
+        results['away_mean_score_30'] = results['level_0'].map(away_mean_score_30)
+
         results['home_median_score_5'] = results['level_0'].map(home_median_score_5)
         results['away_median_score_5'] = results['level_0'].map(away_median_score_5)
 
@@ -106,6 +115,9 @@ class TrainCreator(object):
 
         results['home_median_score_20'] = results['level_0'].map(home_median_score_20)
         results['away_median_score_20'] = results['level_0'].map(away_median_score_20)
+
+        results['home_median_score_30'] = results['level_0'].map(home_median_score_30)
+        results['away_median_score_30'] = results['level_0'].map(away_median_score_30)
 
         results['home_mean_score_5_against'] = results['level_0'].map(home_mean_score_5_against)
         results['away_mean_score_5_against'] = results['level_0'].map(away_mean_score_5_against)
@@ -164,51 +176,78 @@ class TrainCreator(object):
                           .mean()
                           .to_dict())
 
+        avg_scoring_30 = (scoring
+                          .sort_values(['team', 'date'], ascending=[True, True])
+                          .groupby(['team'], sort=False)
+                          ['score']
+                          .shift()
+                          .rolling(30, min_periods=20)
+                          .mean()
+                          .to_dict())
+
         scoring = scoring.reset_index()
 
         scoring['avg_scoring_5'] = scoring['level_0'].map(avg_scoring_5)
         scoring['avg_scoring_10'] = scoring['level_0'].map(avg_scoring_10)
         scoring['avg_scoring_20'] = scoring['level_0'].map(avg_scoring_20)
+        scoring['avg_scoring_30'] = scoring['level_0'].map(avg_scoring_30)
 
-        results_columns = ['index', 'is_pandemic', 'home_mean_score_5', 'away_mean_score_5',
-                           'home_mean_score_10', 'away_mean_score_10', 'home_mean_score_20',
-                           'away_mean_score_20', 'home_median_score_5', 'away_median_score_5',
-                           'home_median_score_10', 'away_median_score_10', 'home_median_score_20',
-                           'away_median_score_20', 'home_mean_score_5_against',
-                           'away_mean_score_5_against', 'home_mean_score_10_against',
-                           'away_mean_score_10_against', 'home_mean_score_20_against',
-                           'away_mean_score_20_against', 'home_median_score_10_against',
-                           'away_median_score_10_against', 'home_max_score_10',
-                           'away_max_score_10']
+        results_columns = ['index', 'is_pandemic',
+                           'home_mean_score_5', 'away_mean_score_5',
+                           'home_mean_score_10', 'away_mean_score_10',
+                           'home_mean_score_20', 'away_mean_score_20',
+                           'home_mean_score_30', 'away_mean_score_30',
+                           'home_median_score_5', 'away_median_score_5',
+                           'home_median_score_10', 'away_median_score_10',
+                           'home_median_score_20', 'away_median_score_20',
+                           'home_median_score_30', 'away_median_score_30',
+                           'home_mean_score_5_against', 'away_mean_score_5_against',
+                           'home_mean_score_10_against', 'away_mean_score_10_against',
+                           'home_mean_score_20_against', 'away_mean_score_20_against',
+                           'home_median_score_10_against', 'away_median_score_10_against',
+                           'home_max_score_10', 'away_max_score_10']
 
         scoring = (scoring
                    .drop(columns=['date', 'level_0'])
                    .merge(results.loc[:, results_columns], how='left', on=['index']))
 
         is_home = (scoring['is_home'] == 1)
-        scoring['mean_score_5'] = np.where(is_home, scoring['home_mean_score_5'], scoring['away_mean_score_5'])
-        scoring['mean_score_10'] = np.where(is_home, scoring['home_mean_score_10'], scoring['away_mean_score_10'])
-        scoring['mean_score_20'] = np.where(is_home, scoring['home_mean_score_20'], scoring['away_mean_score_20'])
+        scoring['location_mean_score_5'] = np.where(is_home, scoring['home_mean_score_5'], scoring['away_mean_score_5'])
+        scoring['location_mean_score_10'] = np.where(is_home, scoring['home_mean_score_10'], scoring['away_mean_score_10'])
+        scoring['location_mean_score_20'] = np.where(is_home, scoring['home_mean_score_20'], scoring['away_mean_score_20'])
+        scoring['location_mean_score_30'] = np.where(is_home, scoring['home_mean_score_30'], scoring['away_mean_score_30'])
 
-        scoring['median_score_5'] = np.where(is_home, scoring['home_median_score_5'], scoring['away_median_score_5'])
-        scoring['median_score_10'] = np.where(is_home, scoring['home_median_score_10'], scoring['away_median_score_10'])
-        scoring['median_score_20'] = np.where(is_home, scoring['home_median_score_20'], scoring['away_median_score_20'])
+        scoring['location_median_score_5'] = np.where(is_home, scoring['home_median_score_5'], scoring['away_median_score_5'])
+        scoring['location_median_score_10'] = np.where(is_home, scoring['home_median_score_10'], scoring['away_median_score_10'])
+        scoring['location_median_score_20'] = np.where(is_home, scoring['home_median_score_20'], scoring['away_median_score_20'])
+        scoring['location_median_score_30'] = np.where(is_home, scoring['home_median_score_30'], scoring['away_median_score_30'])
 
-        scoring['mean_score_5_against'] = np.where(is_home, scoring['home_mean_score_5_against'], scoring['away_mean_score_5_against'])
-        scoring['mean_score_10_against'] = np.where(is_home, scoring['home_mean_score_10_against'], scoring['away_mean_score_10_against'])
-        scoring['mean_score_20_against'] = np.where(is_home, scoring['home_mean_score_20_against'], scoring['away_mean_score_20_against'])
+        scoring['location_mean_score_5_against'] = np.where(is_home,
+                                                            scoring['home_mean_score_5_against'],
+                                                            scoring['away_mean_score_5_against'])
 
-        scoring['median_score_10_against'] = np.where(is_home, scoring['home_median_score_10_against'],
-                                                      scoring['away_median_score_10_against'])
+        scoring['location_mean_score_10_against'] = np.where(is_home,
+                                                             scoring['home_mean_score_10_against'],
+                                                             scoring['away_mean_score_10_against'])
 
-        scoring['max_score_10'] = np.where(is_home, scoring['home_max_score_10'], scoring['away_max_score_10'])
+        scoring['location_mean_score_20_against'] = np.where(is_home,
+                                                             scoring['home_mean_score_20_against'],
+                                                             scoring['away_mean_score_20_against'])
+
+        scoring['location_median_score_10_against'] = np.where(is_home,
+                                                               scoring['home_median_score_10_against'],
+                                                               scoring['away_median_score_10_against'])
+
+        scoring['location_max_score_10'] = np.where(is_home, scoring['home_max_score_10'], scoring['away_max_score_10'])
 
         drop_columns = ['home_mean_score_5', 'away_mean_score_5',
                         'home_mean_score_10', 'away_mean_score_10',
                         'home_mean_score_20', 'away_mean_score_20',
+                        'home_mean_score_30', 'away_mean_score_30',
                         'home_median_score_5', 'away_median_score_5',
                         'home_median_score_10', 'away_median_score_10',
                         'home_median_score_20', 'away_median_score_20',
+                        'home_median_score_30', 'away_median_score_30',
                         'home_mean_score_5_against', 'away_mean_score_5_against',
                         'home_mean_score_10_against', 'away_mean_score_10_against',
                         'home_mean_score_20_against', 'away_mean_score_20_against',
@@ -219,7 +258,7 @@ class TrainCreator(object):
 
         return scoring
 
-    def train_validation(self, results: pd.DataFrame):
+    def train_validation(self, results: pd.DataFrame) -> tuple:
         """"""
         scoring = self.features(results)
         train, validation = train_test_split(scoring, test_size=self.test_size, shuffle=True,
@@ -227,6 +266,8 @@ class TrainCreator(object):
 
         joblib.dump(train, 'data/train.pkl')
         joblib.dump(validation, 'data/validation.pkl')
+
+        return train, validation
 
     def for_predictions(self, results: pd.DataFrame):
         """"""
