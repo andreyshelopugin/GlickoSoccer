@@ -6,19 +6,56 @@ from euro_soccer.draw_model import DrawLightGBM
 
 class DataPreprocessor(object):
 
-    def __init__(self, min_season=2017, is_actual_draw_predictions=False):
+    def __init__(self, min_season=2010, max_season=2022, is_actual_draw_predictions=False):
         self.min_season = min_season
+        self.max_season = max_season
         self.is_actual_draw_predictions = is_actual_draw_predictions
-        self.euro_cups = {'Europa League', 'Champions League', 'Europa Conference League'}
+        self.international_cups = {'Europa League', 'Champions League', 'Europa Conference League',
+                                   'Copa Libertadores', 'Copa Sudamericana'}
+
+    @staticmethod
+    def _duplicated_teams(matches: pd.DataFrame) -> pd.DataFrame:
+        """Find teams from different countries with the same names and rename them."""
+        # find teams were participated in different countries
+        teams_countries = (matches
+                           .loc[matches['tournament_type'].isin({1, 2})]
+                           .groupby(["home_team"])
+                           ["country"]
+                           .nunique()
+                           .reset_index())
+
+        # for detection teams with the same names
+        teams_countries = set(teams_countries.loc[teams_countries["country"] > 1, 'home_team'])
+
+        duplicated_teams = (matches
+                            .loc[matches['home_team'].isin(teams_countries) & matches['tournament_type'].isin({1, 2})]
+                            .drop_duplicates(['home_team', 'country'])
+                            .loc[:, ['home_team', 'country']]
+                            .sort_values(['home_team']))
+
+        duplicated_teams_for_rename = duplicated_teams.loc[duplicated_teams['home_team'] == duplicated_teams['home_team'].shift(-1)]
+
+        duplicated_teams_for_rename = list(zip(duplicated_teams_for_rename['home_team'],
+                                               duplicated_teams_for_rename['country']))
+
+        for team, country in duplicated_teams_for_rename:
+            for location_team in ['home_team', 'away_team']:
+                is_duplicate_team = ((matches[location_team] == team) & (matches['country'] == country))
+
+                matches[location_team] = np.where(is_duplicate_team,
+                                                  (matches[location_team] + ' ' + matches['country']),
+                                                  matches[location_team])
+
+        return matches
 
     def _rename_teams(self, matches: pd.DataFrame) -> pd.DataFrame:
         """"""
 
-        uefa_matches = matches.loc[matches['country'].isin(self.euro_cups)]
+        international = matches.loc[matches['country'].isin(self.international_cups)]
 
         # country name in brackets
-        bracket_teams = (set(uefa_matches.loc[(matches['home_team'].map(lambda x: 1 if '(' in x else 0) == 1), 'home_team'])
-                         .union(set(uefa_matches.loc[(matches['away_team'].map(lambda x: 1 if '(' in x else 0) == 1), 'away_team'])))
+        bracket_teams = (set(international.loc[(matches['home_team'].map(lambda x: 1 if '(' in x else 0) == 1), 'home_team'])
+                         .union(set(international.loc[(matches['away_team'].map(lambda x: 1 if '(' in x else 0) == 1), 'away_team'])))
 
         renaming_teams = {}
         for team in bracket_teams:
@@ -27,31 +64,7 @@ class DataPreprocessor(object):
         matches['home_team'] = matches['home_team'].map(lambda x: renaming_teams[x] if x in renaming_teams else x)
         matches['away_team'] = matches['away_team'].map(lambda x: renaming_teams[x] if x in renaming_teams else x)
 
-        duplicates_names = [('Бенфика', 'Luxembourg'),
-                            ('Арис', 'Cyprus'),
-                            ('Богемианс', 'Ireland'),
-                            ('Горица', 'Croatia'),
-                            ('Дрита', 'North Macedonia'),
-                            ('Ноа', 'Latvia'),
-                            ('Рудар', 'Montenegro')]
-
-        for team, country in duplicates_names:
-            for location_team in ['home_team', 'away_team']:
-                is_duplicate_team = ((matches[location_team] == team) & (matches['country'] == country))
-
-                matches[team] = np.where(is_duplicate_team,
-                                         (matches[location_team] + ' ' + matches['country']),
-                                         matches[location_team])
-
-        same_name_teams = ['Concordia', 'Flamurtari', 'Sloboda', 'Звезда', 'Флямуртари']
-
-        matches['home_team'] = np.where(matches['home_team'].isin(same_name_teams) & (~matches['country'].isin(self.euro_cups)),
-                                        (matches['home_team'] + ' ' + matches['country']),
-                                        matches['home_team'])
-
-        matches['away_team'] = np.where(matches['away_team'].isin(same_name_teams) & (~matches['country'].isin(self.euro_cups)),
-                                        (matches['away_team'] + ' ' + matches['country']),
-                                        matches['away_team'])
+        matches = self._duplicated_teams(matches)
 
         matches['home_team'] = matches['home_team'].map(lambda x: x.replace("'", "").strip())
         matches['away_team'] = matches['away_team'].map(lambda x: x.replace("'", "").strip())
@@ -59,7 +72,8 @@ class DataPreprocessor(object):
         return matches
 
     def draw_probability(self, matches: pd.DataFrame) -> pd.DataFrame:
-        """"""
+        """Use catboost model which calculate draw probability.
+        Use this probability as a parameter in glicko model."""
         if self.is_actual_draw_predictions:
             DrawLightGBM().actual_predictions(matches)
 
@@ -76,12 +90,14 @@ class DataPreprocessor(object):
 
         return matches
 
-    def _remove_matches_with_unknown_team(self, matches: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def _remove_matches_with_unknown_team(matches: pd.DataFrame) -> pd.DataFrame:
         """Remove matches between teams from leagues we don't know anything about."""
         for season in matches['season'].unique():
-            team_leagues = self._team_leagues(matches, season)
+            no_cups = (matches.loc[matches['tournament_type'].isin({1, 2})
+                                   & (matches['season'] == season), ['home_team', 'away_team']])
 
-            known_teams = team_leagues.keys()
+            known_teams = set(no_cups['home_team']).union(no_cups['away_team'])
 
             is_both_teams_known = ((matches['season'] == season)
                                    & matches['home_team'].isin(known_teams)
@@ -90,18 +106,6 @@ class DataPreprocessor(object):
             matches = matches.loc[(matches['season'] != season) | is_both_teams_known]
 
         return matches
-
-    @staticmethod
-    def _team_leagues(results: pd.DataFrame, season: int) -> dict:
-        """"""
-        no_cups = (results.loc[results['tournament_type'].isin({1, 2})
-                               & (results['season'] == season), ['home_team', 'away_team', 'tournament']])
-
-        team_leagues = dict(zip(no_cups['home_team'], no_cups['tournament']))
-
-        team_leagues.update(dict(zip(no_cups['away_team'], no_cups['tournament'])))
-
-        return team_leagues
 
     @staticmethod
     def _get_finals(matches: pd.DataFrame, is_end_of_season=True) -> pd.DataFrame:
@@ -138,18 +142,16 @@ class DataPreprocessor(object):
         matches['season'] = matches['season'].map(lambda x: x.split('-')[0]).to_numpy('int')
 
         matches = (matches
-                   .loc[matches['season'] >= self.min_season]
+                   .loc[(matches['season'] >= self.min_season) & (matches['season'] <= self.max_season)]
                    .sort_values(['date'])
                    .reset_index(drop=True))
 
         # drop future matches: need only ratings, not further predictions
         matches = matches.loc[matches['home_score'] != '-']
 
-        matches = matches.loc[~matches['notes'].isin({"Awrd", "Техпоражение", "Неявка"})]
+        matches = matches.loc[~matches['notes'].isin({"Awrd"})]
 
-        matches = self._rename_teams(matches)
-
-        matches["tournament"] = np.where(matches["league"].isin(self.euro_cups),
+        matches["tournament"] = np.where(matches["league"].isin(self.international_cups),
                                          matches["league"],
                                          matches["country"] + '. ' + matches["tournament_type"].str.title())
 
@@ -158,6 +160,9 @@ class DataPreprocessor(object):
                                                                      'cups': 3,
                                                                      'super_cups': 4})
 
+        matches = self._rename_teams(matches)
+
+        # outcome
         matches[['home_score', 'away_score']] = matches[['home_score', 'away_score']].to_numpy('int')
 
         conditions = [(matches['home_score'] > matches['away_score']),
@@ -171,34 +176,21 @@ class DataPreprocessor(object):
         is_pandemic = (matches['date'] > '2020-03-03') & (matches['date'] < '2021-06-06')
         matches['is_pandemic'] = np.where(is_pandemic, 1, 0)
 
-        # matches_copy = matches.copy()
-
         matches = self._remove_matches_with_unknown_team(matches)
-
-        # print(matches_copy.loc[(~matches_copy['index'].isin(matches['index']))
-        #                        & (matches_copy['country'].isin(self.euro_cups))].shape)
-        #
-        # print(matches_copy.loc[(~matches_copy['index'].isin(matches['index']))
-        #                        & (matches_copy['country'].isin(self.euro_cups))].head())
-
         matches = self.draw_probability(matches)
-
         matches = self._get_finals(matches)
 
-        # technical wins
-        # print(matches['notes'].value_counts())
-
         matches = (matches
-                   # .drop(columns=['home_score', 'away_score', 'notes'])
+                   .drop(columns=['home_score', 'away_score', 'notes', 'file_path'])
                    .sort_values(['date']))
 
         return matches
 
     def test_data(self, matches: pd.DataFrame):
-        """"""
+        """Use this function for detection mistakes in the data."""
         # short season tournaments
         count_matches = (matches
-                         .loc[matches['tournament_type'].isin([1, 2]) & (matches['season'] != matches['season'].max())]
+                         .loc[matches['tournament_type'].isin({1, 2}) & (matches['season'] != matches['season'].max())]
                          .groupby(['country', 'tournament_type', 'season'])
                          ['index']
                          .count()
@@ -226,23 +218,29 @@ class DataPreprocessor(object):
 
         count_tournaments = count_tournaments.loc[count_tournaments['number_tournaments'] < 3]
 
+        # teams in eurocups without nation league
+        international_teams = (set(matches.loc[matches['country'].isin(self.international_cups), 'home_team'])
+                               .union(set(matches.loc[matches['country'].isin(self.international_cups), 'away_team'])))
+
+        national_teams = set(matches.loc[matches['tournament_type'].isin({1, 2}), 'home_team'])
+
+        international_teams_without_national = sorted([t for t in international_teams if t not in national_teams])
+
         # find teams were participated in different countries
         teams_countries = (matches
                            .loc[matches['tournament_type'].isin({1, 2})]
                            .groupby(["home_team"])
                            ["country"]
                            .nunique()
-                           .reset_index()
-                           .rename(columns={'country': 'teams_countries'}))
+                           .reset_index())
 
-        teams_countries = teams_countries.loc[teams_countries["teams_countries"] > 1]
+        # for detection teams with the same names
+        teams_countries = set(teams_countries.loc[teams_countries["country"] > 1, 'home_team'])
 
-        # teams in eurocups without nation league
-        uefa_teams = (set(matches.loc[matches['country'].isin(self.euro_cups), 'home_team'])
-                      .union(set(matches.loc[matches['country'].isin(self.euro_cups), 'away_team'])))
+        duplicated_teams = (matches
+                            .loc[matches['home_team'].isin(teams_countries) & matches['tournament_type'].isin({1, 2})]
+                            .drop_duplicates(['home_team', 'country'])
+                            .loc[:, ['home_team', 'country']]
+                            .sort_values(['home_team']))
 
-        national_teams = set(matches.loc[matches['tournament_type'].isin({1, 2}), 'home_team'])
-
-        uefa_teams_without_national = sorted([t for t in uefa_teams if t not in national_teams])
-
-        return count_matches, count_seasons, count_tournaments, teams_countries, uefa_teams_without_national
+        return count_matches, count_seasons, count_tournaments, international_teams_without_national, duplicated_teams

@@ -13,8 +13,8 @@ class TrainCreator(object):
         self.random_state = random_state
 
     @staticmethod
-    def calculate_stats(results: pd.DataFrame, is_home: bool, stats_type: str, window: int, min_periods: int,
-                        is_against=False) -> Dict:
+    def calculate_rolling_stats(results: pd.DataFrame, is_home: bool, stats_type: str, window: int, min_periods: int,
+                                is_against=False) -> Dict:
         """"""
         if is_home:
             team = 'home_team'
@@ -54,44 +54,44 @@ class TrainCreator(object):
 
     def features(self, results: pd.DataFrame) -> pd.DataFrame:
         """"""
-        home_mean_score_5 = self.calculate_stats(results, True, 'mean', 5, 3)
-        away_mean_score_5 = self.calculate_stats(results, False, 'mean', 5, 3)
+        home_mean_score_5 = self.calculate_rolling_stats(results, True, 'mean', 5, 3)
+        away_mean_score_5 = self.calculate_rolling_stats(results, False, 'mean', 5, 3)
 
-        home_mean_score_10 = self.calculate_stats(results, True, 'mean', 10, 5)
-        away_mean_score_10 = self.calculate_stats(results, False, 'mean', 10, 5)
+        home_mean_score_10 = self.calculate_rolling_stats(results, True, 'mean', 10, 5)
+        away_mean_score_10 = self.calculate_rolling_stats(results, False, 'mean', 10, 5)
 
-        home_mean_score_20 = self.calculate_stats(results, True, 'mean', 20, 10)
-        away_mean_score_20 = self.calculate_stats(results, False, 'mean', 20, 10)
+        home_mean_score_20 = self.calculate_rolling_stats(results, True, 'mean', 20, 10)
+        away_mean_score_20 = self.calculate_rolling_stats(results, False, 'mean', 20, 10)
 
-        home_mean_score_30 = self.calculate_stats(results, True, 'mean', 30, 20)
-        away_mean_score_30 = self.calculate_stats(results, False, 'mean', 30, 20)
+        home_mean_score_30 = self.calculate_rolling_stats(results, True, 'mean', 30, 20)
+        away_mean_score_30 = self.calculate_rolling_stats(results, False, 'mean', 30, 20)
 
-        home_median_score_5 = self.calculate_stats(results, True, 'median', 5, 3)
-        away_median_score_5 = self.calculate_stats(results, False, 'median', 5, 3)
+        home_median_score_5 = self.calculate_rolling_stats(results, True, 'median', 5, 3)
+        away_median_score_5 = self.calculate_rolling_stats(results, False, 'median', 5, 3)
 
-        home_median_score_10 = self.calculate_stats(results, True, 'median', 10, 5)
-        away_median_score_10 = self.calculate_stats(results, False, 'median', 10, 5)
+        home_median_score_10 = self.calculate_rolling_stats(results, True, 'median', 10, 5)
+        away_median_score_10 = self.calculate_rolling_stats(results, False, 'median', 10, 5)
 
-        home_median_score_20 = self.calculate_stats(results, True, 'median', 20, 10)
-        away_median_score_20 = self.calculate_stats(results, False, 'median', 20, 10)
+        home_median_score_20 = self.calculate_rolling_stats(results, True, 'median', 20, 10)
+        away_median_score_20 = self.calculate_rolling_stats(results, False, 'median', 20, 10)
 
-        home_median_score_30 = self.calculate_stats(results, True, 'median', 30, 20)
-        away_median_score_30 = self.calculate_stats(results, False, 'median', 30, 20)
+        home_median_score_30 = self.calculate_rolling_stats(results, True, 'median', 30, 20)
+        away_median_score_30 = self.calculate_rolling_stats(results, False, 'median', 30, 20)
 
-        home_mean_score_5_against = self.calculate_stats(results, True, 'mean', 5, 3, True)
-        away_mean_score_5_against = self.calculate_stats(results, False, 'mean', 5, 3, True)
+        home_mean_score_5_against = self.calculate_rolling_stats(results, True, 'mean', 5, 3, True)
+        away_mean_score_5_against = self.calculate_rolling_stats(results, False, 'mean', 5, 3, True)
 
-        home_mean_score_10_against = self.calculate_stats(results, True, 'mean', 10, 5, True)
-        away_mean_score_10_against = self.calculate_stats(results, False, 'mean', 10, 5, True)
+        home_mean_score_10_against = self.calculate_rolling_stats(results, True, 'mean', 10, 5, True)
+        away_mean_score_10_against = self.calculate_rolling_stats(results, False, 'mean', 10, 5, True)
 
-        home_median_score_10_against = self.calculate_stats(results, True, 'median', 10, 5, True)
-        away_median_score_10_against = self.calculate_stats(results, False, 'median', 10, 5, True)
+        home_median_score_10_against = self.calculate_rolling_stats(results, True, 'median', 10, 5, True)
+        away_median_score_10_against = self.calculate_rolling_stats(results, False, 'median', 10, 5, True)
 
-        home_mean_score_20_against = self.calculate_stats(results, True, 'mean', 20, 10, True)
-        away_mean_score_20_against = self.calculate_stats(results, False, 'mean', 20, 10, True)
+        home_mean_score_20_against = self.calculate_rolling_stats(results, True, 'mean', 20, 10, True)
+        away_mean_score_20_against = self.calculate_rolling_stats(results, False, 'mean', 20, 10, True)
 
-        home_max_score_10 = self.calculate_stats(results, True, 'max', 10, 5)
-        away_max_score_10 = self.calculate_stats(results, False, 'max', 10, 5)
+        home_max_score_10 = self.calculate_rolling_stats(results, True, 'max', 10, 5)
+        away_max_score_10 = self.calculate_rolling_stats(results, False, 'max', 10, 5)
 
         results = results.reset_index()
 

@@ -2,7 +2,7 @@ import joblib
 import numpy as np
 import optuna
 import pandas as pd
-import shap
+# import shap
 from lightgbm import LGBMRegressor
 import lightgbm as lgb
 from optuna.integration import LightGBMTunerCV
@@ -216,23 +216,6 @@ class DrawLightGBM(object):
         joblib.dump(predictions, 'data/skellam_predictions.pkl')
 
         return predictions
-
-    def shap_feature_importance(self, max_display=10):
-        """"""
-
-        train = joblib.load(self.train_path)
-
-        x_train, y_train = train.loc[:, self.features], train[self.target].to_numpy('int')
-
-        light_gbm = self.model()
-
-        model = light_gbm.fit(x_train, y_train,
-                              categorical_feature=self.categorical_features,
-                              verbose=False)
-
-        shap_values = shap.TreeExplainer(model).shap_values(x_train)
-
-        return shap.summary_plot(shap_values, x_train, plot_type="bar", max_display=max_display, show=False)
 
     def feature_importance(self) -> pd.DataFrame:
         """
