@@ -9,7 +9,7 @@ from optuna.integration import LightGBMTunerCV
 from scipy.stats import skellam
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.model_selection import KFold
-from euro_soccer.draw_probability_train_creator import TrainCreator
+from euro_soccer.outcomes_features import TrainCreator
 
 
 class DrawLightGBM(object):

@@ -1,1 +1,10 @@
 project_path: ""
+matches_path: "data/matches.csv"
+outcomes_paths:
+  train: "data/train.pkl"
+  validation: "data/validation.pkl"
+  test: "data/test.pkl"
+  model: "saved_models/goals_predictions.cbm"
+  predictions: "data/outcomes_predictions.pkl"
+ratings_paths:
+  league_params: "data/league_params.pkl"

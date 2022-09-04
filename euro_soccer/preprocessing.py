@@ -1,12 +1,13 @@
 import joblib
 import pandas as pd
 import numpy as np
-from euro_soccer.draw_model import DrawLightGBM
+from euro_soccer.outcomes_catboost import OutcomesCatBoost
+from config import Config
 
 
 class DataPreprocessor(object):
 
-    def __init__(self, min_season=2010, max_season=2022, is_actual_draw_predictions=False):
+    def __init__(self, min_season=2010, max_season=2021, is_actual_draw_predictions=False):
         self.min_season = min_season
         self.max_season = max_season
         self.is_actual_draw_predictions = is_actual_draw_predictions
@@ -75,13 +76,13 @@ class DataPreprocessor(object):
         """Use catboost model which calculate draw probability.
         Use this probability as a parameter in glicko model."""
         if self.is_actual_draw_predictions:
-            DrawLightGBM().actual_predictions(matches)
+            OutcomesCatBoost().predict(matches)
 
-        draw_predictions = joblib.load('data/skellam_predictions.pkl')
+        draw_predictions = joblib.load(Config().project_path + Config().outcomes_paths['predictions'])
 
-        draw_predictions = dict(zip(draw_predictions['index'], draw_predictions['draw']))
+        draw_predictions = dict(zip(draw_predictions['match_id'], draw_predictions['draw']))
 
-        matches['draw_probability'] = matches['index'].map(draw_predictions)
+        matches['draw_probability'] = matches['match_id'].map(draw_predictions)
 
         # we can not apply skellam model, just use mean as draw probability
         mean_draw = matches.loc[matches['outcome'] == 'D'].shape[0] / matches.shape[0]
@@ -127,14 +128,17 @@ class DataPreprocessor(object):
                                               4,
                                               matches['tournament_type'])
 
-        matches['outcome'] = np.where((matches['tournament_type'] == 4) & matches['notes'].isin({'Послесп'}),
+        matches['outcome'] = np.where((matches['tournament_type'] == 4) & (matches['notes'] == 'Pen'),
                                       'D',
                                       matches['outcome'])
 
         return matches
 
-    def preprocessing(self, matches: pd.DataFrame) -> pd.DataFrame:
+    def preprocessing(self, matches: pd.DataFrame = None) -> pd.DataFrame:
         """"""
+        if matches is None:
+            matches = pd.read_csv(Config().project_path + Config().matches_path)
+
         matches = matches.reset_index()
 
         matches['date'] = pd.to_datetime(matches['date'].str.replace('29.02', '28.02'), format='%d.%m.%Y', dayfirst=True)
@@ -177,12 +181,14 @@ class DataPreprocessor(object):
         matches['is_pandemic'] = np.where(is_pandemic, 1, 0)
 
         matches = self._remove_matches_with_unknown_team(matches)
-        matches = self.draw_probability(matches)
         matches = self._get_finals(matches)
 
         matches = (matches
-                   .drop(columns=['home_score', 'away_score', 'notes', 'file_path'])
-                   .sort_values(['date']))
+                   .drop(columns=['notes'])
+                   .sort_values(['date'])
+                   .rename(columns={'index': 'match_id'}))
+
+        matches = self.draw_probability(matches)
 
         return matches
 

@@ -3,22 +3,22 @@ import numpy as np
 import pandas as pd
 from catboost import CatBoostRegressor, Pool, cv
 from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import KFold
-from config import Config
 
 
 class CatBoost(object):
 
     def __init__(self, target: str, loss_function='RMSE', cv_metric='test-RMSE-mean',
-                 iterations=5000, learning_rate=0.002,
+                 iterations=1000, learning_rate=0.01,
                  depth=8, l2_leaf_reg=3, colsample_bylevel=0.8, bagging_temperature=1, subsample=1,
                  random_strength=1, min_data_in_leaf=20,
                  boosting_type='Ordered', bootstrap_type='Bayesian', od_type='Iter', od_wait=20,
                  fold_count=5, seed=7):
 
-        self.train_path = Config().project_path + 'data/train.pkl'
-        self.test_path = Config().project_path + 'data/test.pkl'
-        self.model_path = Config().project_path + 'saved_models/catboost_' + target + '.pkl'
+        self.train_path = ''
+        self.validation_path = ''
+        self.test_path = ''
+
+        self.model_path = ''
 
         self.target = target
         self.loss_function = loss_function
@@ -169,58 +169,37 @@ class CatBoost(object):
 
         return validation
 
-    def save_model(self, is_with_validation=True):
+    def save_model(self):
         """"""
         train_set = joblib.load(self.train_path)
+        validation_set = joblib.load(self.test_path)
 
-        if is_with_validation:
-            validation = joblib.load(self.test_path)
-            train_set = pd.concat([train_set, validation])
+        x_train, y_train = train_set.loc[:, self.features], train_set[self.target]
+        x_val, y_val = validation_set.loc[:, self.features], validation_set[self.target]
 
-        kf = KFold(n_splits=self.fold_count, shuffle=True, random_state=self.seed)
+        # unfitted model
+        model = self.regressor()
 
-        models = []
-        for train_index, test_index in kf.split(train_set):
-            fold_train, fold_test = train_set.iloc[train_index], train_set.iloc[test_index]
+        model.fit(x_train, y_train,
+                  cat_features=self.cat_features,
+                  early_stopping_rounds=self.od_wait,
+                  eval_set=(x_val, y_val),
+                  verbose=False)
 
-            x_train, y_train = fold_train.loc[:, self.features], fold_train[self.target]
-            x_test, y_test = fold_test.loc[:, self.features], fold_test[self.target]
+        model.save_model(self.model_path)
 
-            # unfitted model
-            model = self.regressor()
-
-            model.fit(x_train, y_train,
-                      cat_features=self.cat_features,
-                      early_stopping_rounds=self.od_wait,
-                      eval_set=(x_test, y_test),
-                      verbose=False)
-
-            # fitted model
-            models.append(model)
-
-        joblib.dump(models, self.model_path)
-
-    def make_predictions(self, data: pd.DataFrame) -> pd.DataFrame:
+    def make_predictions(self, data: pd.DataFrame, prediction_name: str = None) -> pd.DataFrame:
         """
-            Load train model and make predictions on new data (or test).
+            Load trained model and make predictions on new data (or test).
         """
 
-        models_list = joblib.load(self.model_path)
+        if prediction_name is None:
+            prediction_name = 'prediction'
 
-        data['value'] = np.mean([model.predict(data.loc[:, self.features]) for model in models_list], axis=0, dtype=np.float64)
+        model = CatBoostRegressor()
 
-        return data
+        model.load_model(self.model_path)
 
-    def make_predictions_test(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-            Load train model and make predictions on new data.
-            Leave features for eye test
-        """
-
-        models_list = joblib.load(self.model_path)
-
-        data[self.target] = np.mean([model.predict(data.loc[:, self.features]) for model in models_list], axis=0, dtype=np.float64)
-
-        data = data.sort_values(['id_match', 'ishome'])
+        data[prediction_name] = model.predict(data.loc[:, self.features])
 
         return data

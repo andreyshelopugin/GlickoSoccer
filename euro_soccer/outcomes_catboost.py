@@ -1,40 +1,51 @@
 import joblib
 import optuna
-from scipy.stats import skellam
-import numpy as np
 import pandas as pd
-from catboost_model import CatBoost
+from scipy.stats import skellam
+
+from catboost_model import CatBoost, CatBoostRegressor
+from config import Config
 
 
 class OutcomesCatBoost(CatBoost):
 
     def __init__(self, target='score'):
-        super().__init__(target=target, iterations=5000, learning_rate=0.002, colsample_bylevel=0.8,
+        super().__init__(target=target, iterations=500, learning_rate=0.02, colsample_bylevel=0.8,
                          depth=8, l2_leaf_reg=3, bagging_temperature=1,
                          random_strength=1, od_wait=20)
 
-        self.features = [
-                         'is_home',
+        self.train_path = Config().project_path + Config().outcomes_paths['train']
+        self.validation_path = Config().project_path + Config().outcomes_paths['validation']
+        self.test_path = Config().project_path + Config().outcomes_paths['test']
+        self.predictions_path = Config().project_path + Config().outcomes_paths['predictions']
+
+        self.model_path = Config().project_path + Config().outcomes_paths['model']
+
+        self.features = ['is_home',
+                         'is_pandemic',
                          'avg_scoring_5',
                          'avg_scoring_10',
                          'avg_scoring_20',
                          'avg_scoring_30',
-                         'is_pandemic',
-                         'mean_score_5',
-                         'mean_score_10',
-                         'mean_score_20',
-                         'mean_score_30',
-                         'median_score_5',
-                         'median_score_10',
-                         'median_score_20',
-                         'median_score_30',
-                         'mean_score_5_against',
-                         'mean_score_10_against',
-                         'mean_score_20_against',
-                         'median_score_10_against',
-                         'max_score_10']
-        self.cat_features = []
-        self.predictions_path = 'data/skellam_predictions.pkl'
+                         'tournament_type',
+                         'tournament',
+                         'league',
+                         'opp_league',
+                         'location_mean_score_5',
+                         'location_mean_score_10',
+                         'location_mean_score_20',
+                         'location_mean_score_30',
+                         'location_median_score_5',
+                         'location_median_score_10',
+                         'location_median_score_20',
+                         'location_median_score_30',
+                         'location_mean_score_5_against',
+                         'location_mean_score_10_against',
+                         'location_mean_score_20_against',
+                         'location_median_score_10_against',
+                         'location_max_score_10']
+
+        self.cat_features = ['tournament_type', 'tournament', 'league', 'opp_league']
 
     def optuna_optimization(self, n_trials: int):
         """"""
@@ -88,33 +99,40 @@ class OutcomesCatBoost(CatBoost):
         if new_data is None:
             new_data = joblib.load(self.test_path)
 
-        light_gbm_list = joblib.load(self.model_path)
+        model = CatBoostRegressor()
 
-        new_data['prediction'] = np.mean([model.predict(new_data.loc[:, self.features]) for model in light_gbm_list],
-                                         axis=0, dtype=np.float64)
+        model.load_model(self.model_path)
+
+        new_data['prediction'] = model.predict(new_data.loc[:, self.features])
 
         home = (new_data
-                .loc[(new_data['is_home'] == 1), ['index', 'prediction']]
+                .loc[(new_data['is_home'] == 1), ['match_id', 'prediction']]
                 .dropna()
-                .rename(columns={'prediction': 'home_prediction'}))
+                .rename(columns={'prediction': 'home_goals'}))
 
         away = (new_data
-                .loc[(new_data['is_home'] == 0), ['index', 'prediction']]
+                .loc[(new_data['is_home'] == 0), ['match_id', 'prediction']]
                 .dropna()
-                .rename(columns={'opponent': 'team', 'prediction': 'away_prediction'}))
+                .rename(columns={'opponent': 'team', 'prediction': 'away_goals'}))
 
-        home['index'] = home['index'].to_numpy('int')
-        away['index'] = away['index'].to_numpy('int')
+        home['match_id'] = home['match_id'].to_numpy('int')
+        away['match_id'] = away['match_id'].to_numpy('int')
 
-        predictions = home.merge(away, how='inner', on=['index'])
+        predictions = home.merge(away, how='inner', on=['match_id'])
 
         predictions = (predictions
-                       .sort_values(['index'])
+                       .sort_values(['match_id'])
                        .reset_index(drop=True))
 
+        predictions['home_win'] = (predictions
+                                   .loc[:, ['home_goals', 'away_goals']]
+                                   .apply(lambda df: skellam.pmf([range(1, 30)], df[0], df[1]).sum(), axis=1))
+
         predictions['draw'] = (predictions
-                               .loc[:, ['home_prediction', 'away_prediction']]
+                               .loc[:, ['home_goals', 'away_goals']]
                                .apply(lambda df: skellam.pmf(0, df[0], df[1]).sum(), axis=1))
+
+        predictions['away_win'] = (1 - predictions['home_win'] - predictions['draw'])
 
         joblib.dump(predictions, self.predictions_path)
 

@@ -7,6 +7,7 @@ import pandas as pd
 
 from glicko2 import Glicko2, Rating
 from utils.metrics import three_outcomes_log_loss
+from config import Config
 
 
 class GlickoSoccer(object):
@@ -26,13 +27,20 @@ class GlickoSoccer(object):
 
     @staticmethod
     def _team_leagues(results: pd.DataFrame, season: int) -> dict:
-        """Each team match with her league for specific season."""
+        """Each team match with her league for specific season.
+        Potential bug: some relegation sub tournaments marked as first league tournaments.
+        For example, transfer matches in the Netherlands.
+        Usually these matches happened in the end of the season. It is reason why we use keep='first' in drop_duplicates"""
+
         no_cups = (results.loc[results['tournament_type'].isin({1, 2})
                                & (results['season'] == season), ['home_team', 'away_team', 'tournament']])
 
-        team_leagues = dict(zip(no_cups['home_team'], no_cups['tournament']))
+        home_teams = no_cups.drop_duplicates(['home_team'], keep='first')
+        away_teams = no_cups.drop_duplicates(['away_team'], keep='first')
 
-        team_leagues.update(dict(zip(no_cups['away_team'], no_cups['tournament'])))
+        team_leagues = dict(zip(home_teams['home_team'], home_teams['tournament']))
+
+        team_leagues.update(dict(zip(away_teams['away_team'], away_teams['tournament'])))
 
         return team_leagues
 
@@ -344,7 +352,7 @@ class GlickoSoccer(object):
         if is_params_initialization:
             league_params = self._league_params_initialization(results)
         else:
-            league_params = joblib.load('data/league_params.pkl')
+            league_params = joblib.load(Config().project_path + Config().ratings_paths['league_params'])
 
         self.first_leagues = set(results.loc[results['tournament_type'] == 1, 'tournament'])
 
