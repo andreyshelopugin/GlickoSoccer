@@ -169,6 +169,8 @@ class TrainCreator(object):
 
         scoring = pd.concat([home_scoring, away_scoring])
 
+        scoring = scoring.reset_index(drop=True).reset_index()
+
         avg_scoring_5 = (scoring
                          .sort_values(['team', 'date'], ascending=[True, True])
                          .groupby(['team'], sort=False)
@@ -204,8 +206,6 @@ class TrainCreator(object):
                           .rolling(30, min_periods=20)
                           .mean()
                           .to_dict())
-
-        scoring = scoring.reset_index()
 
         scoring['avg_scoring_5'] = scoring['index'].map(avg_scoring_5)
         scoring['avg_scoring_10'] = scoring['index'].map(avg_scoring_10)
