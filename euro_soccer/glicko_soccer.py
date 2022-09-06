@@ -87,7 +87,7 @@ class GlickoSoccer(object):
                 if team not in ratings:
                     ratings[team] = Rating(mu=params['init_mu'], rd=params['init_rd'], volatility=self.volatility)
 
-        # normalization as way for fighting with inflation
+        # normalization as a way for fighting with inflation
         mean_rating = np.mean([rating.mu for _, rating in ratings.items()])
         ratings = {team: Rating(mu=self.init_mu * rating.mu / mean_rating, rd=rating.rd, volatility=self.volatility)
                    for team, rating in ratings.items()}
@@ -95,15 +95,15 @@ class GlickoSoccer(object):
         return ratings
 
     @staticmethod
-    def _update_ratings_indexes(results: pd.DataFrame) -> Tuple[dict, dict, dict]:
+    def _update_ratings_match_ids(results: pd.DataFrame) -> Tuple[dict, dict, dict, set]:
         """Find indexes, when teams missed previous season,
-        relegate/eliminate from league and leave in the league from previous season(
+        relegate/eliminate from league and leave in the league from previous season.
         Index here is an index of dataset. Use them for optimization reason."""
         no_cups = results.loc[results['tournament_type'].isin({1, 2})]
 
-        no_cups = pd.concat([no_cups.loc[:, ['date', 'index', 'home_team', 'season', 'tournament']]
+        no_cups = pd.concat([no_cups.loc[:, ['date', 'match_id', 'home_team', 'season', 'tournament']]
                             .rename(columns={'home_team': 'team'}),
-                             no_cups.loc[:, ['date', 'index', 'away_team', 'season', 'tournament']]
+                             no_cups.loc[:, ['date', 'match_id', 'away_team', 'season', 'tournament']]
                             .rename(columns={'away_team': 'team'})])
 
         no_cups = (no_cups
@@ -116,7 +116,7 @@ class GlickoSoccer(object):
                                   .loc[(no_cups['season'] != no_cups['season'].shift() + 1)
                                        & (no_cups['team'] == no_cups['team'].shift())]
                                   .groupby(['team'])
-                                  ['index']
+                                  ['match_id']
                                   .apply(set)
                                   .to_dict())
 
@@ -125,7 +125,7 @@ class GlickoSoccer(object):
 
         first_team_season = first_team_season.loc[first_team_season['season'] != first_team_season['season'].min()]
 
-        first_team_season = dict(zip(first_team_season['team'], first_team_season['index']))
+        first_team_season = dict(zip(first_team_season['team'], first_team_season['match_id']))
 
         for team, first_season_index in first_team_season.items():
             if team in missed_previous_season:
@@ -141,7 +141,7 @@ class GlickoSoccer(object):
                                & (no_cups['tournament'] != no_cups['tournament'].shift())
                                & (no_cups['team'] == no_cups['team'].shift())]
                           .groupby(['team'])
-                          ['index']
+                          ['match_id']
                           .apply(set)
                           .to_dict())
 
@@ -151,66 +151,46 @@ class GlickoSoccer(object):
                             & (no_cups['tournament'] == no_cups['tournament'].shift())
                             & (no_cups['team'] == no_cups['team'].shift())]
                        .groupby(['team'])
-                       ['index']
+                       ['match_id']
                        .apply(set)
                        .to_dict())
 
-        return missed_previous_season, changed_league, same_league
+        indexes_for_update_ratings = (set.union(*missed_previous_season.values())
+                                      .union(set.union(*changed_league.values()))
+                                      .union(set.union(*same_league.values())))
 
-    def _season_update_rating(self, ratings: dict, home_team: str, away_team: str, index: int,
+        return missed_previous_season, changed_league, same_league, indexes_for_update_ratings
+
+    def _season_update_rating(self, ratings: dict, home_team: str, away_team: str, match_id: int,
                               home_params: dict, away_params: dict,
                               missed_previous_season: Dict[str, set], changed_league: Dict[str, set],
                               same_league: Dict[str, set]) -> dict:
-        """"""
+        """Update rating's mu and RD after each season."""
         for team in [home_team, away_team]:
             if team == home_team:
                 params = home_params
             else:
                 params = away_params
 
-            if team in missed_previous_season:
-                if index in missed_previous_season[team]:
+            if team in same_league:
+                if match_id in same_league[team]:
+                    ratings[team] = Rating(mu=ratings[team].mu,
+                                           rd=ratings[team].rd + params['update_rd'],
+                                           volatility=self.volatility)
+
+            elif team in missed_previous_season:
+                if match_id in missed_previous_season[team]:
                     ratings[team] = Rating(mu=params['init_mu'] + params['new_team_update_mu'],
                                            rd=params['init_rd'],
                                            volatility=self.volatility)
 
             elif team in changed_league:
-                if index in changed_league[team]:
+                if match_id in changed_league[team]:
                     ratings[team] = Rating(mu=ratings[team].mu + params['lift_update_mu'],
                                            rd=ratings[team].rd + params['update_rd'],
                                            volatility=self.volatility)
 
-            elif team in same_league:
-                if index in same_league[team]:
-                    ratings[team] = Rating(mu=ratings[team].mu,
-                                           rd=ratings[team].rd + params['update_rd'],
-                                           volatility=self.volatility)
-
         return ratings
-
-    def _indexes_for_update(self, results: pd.DataFrame) -> Tuple[dict, dict, dict, set]:
-        """"""
-
-        missed_previous_season, changed_league, same_league = self._update_ratings_indexes(results)
-
-        indexes_for_update_ratings = set()
-        for row in results.itertuples():
-            index, home_team, away_team = row.index, row.home_team, row.away_team
-
-            for team in [home_team, away_team]:
-                if team in missed_previous_season:
-                    if index in missed_previous_season[team]:
-                        indexes_for_update_ratings.add(index)
-
-                elif team in changed_league:
-                    if index in changed_league[team]:
-                        indexes_for_update_ratings.add(index)
-
-                elif team in same_league:
-                    if index in same_league[team]:
-                        indexes_for_update_ratings.add(index)
-
-        return missed_previous_season, changed_league, same_league, indexes_for_update_ratings
 
     def rate_teams(self, results: pd.DataFrame, league_params: dict) -> dict:
         """"""
@@ -221,7 +201,7 @@ class GlickoSoccer(object):
 
         team_leagues_all = {season: self._team_leagues(results, season) for season in seasons}
 
-        missed_prev, changed, same, indexes_for_update = self._indexes_for_update(results)
+        missed_prev, changed, same, match_ids_for_update = self._update_ratings_match_ids(results)
         results = results.drop(columns=['date', 'country'])
 
         team_params = {season: self._team_params(season, league_params, team_leagues_all) for season in seasons}
@@ -230,15 +210,15 @@ class GlickoSoccer(object):
 
         for row in results.itertuples(index=False):
 
-            index, home_team, away_team, season = row.index, row.home_team, row.away_team, row.season
+            match_id, home_team, away_team, season = row.match_id, row.home_team, row.away_team, row.season
             outcome, skellam_draw_probability, is_pandemic = row.outcome, row.draw_probability, row.is_pandemic
             tournament_type = row.tournament_type
 
             home_params = team_params[season][home_team]
             away_params = team_params[season][away_team]
 
-            if index in indexes_for_update:
-                ratings = self._season_update_rating(ratings, home_team, away_team, index, home_params, away_params,
+            if match_id in match_ids_for_update:
+                ratings = self._season_update_rating(ratings, home_team, away_team, match_id, home_params, away_params,
                                                      missed_prev, changed, same)
 
             if tournament_type == 4:
@@ -249,11 +229,8 @@ class GlickoSoccer(object):
                 else:
                     home_advantage = home_params['home_advantage']
 
-            # get current team ratings
-            home_rating, away_rating = ratings[home_team], ratings[away_team]
-
             # update team ratings
-            ratings[home_team], ratings[away_team] = glicko.rate(home_rating, away_rating, home_advantage,
+            ratings[home_team], ratings[away_team] = glicko.rate(ratings[home_team], ratings[away_team], home_advantage,
                                                                  outcome,
                                                                  skellam_draw_probability)
 
@@ -261,7 +238,7 @@ class GlickoSoccer(object):
 
     def calculate_loss(self, results: pd.DataFrame, league_params: dict, team_leagues_all: dict,
                        missed_previous_season: dict, changed_league: dict, same_league: dict,
-                       indexes_for_update_ratings: set) -> float:
+                       match_ids_for_update: set) -> float:
         """"""
 
         glicko = Glicko2(draw_inclination=self.draw_inclination)
@@ -269,20 +246,22 @@ class GlickoSoccer(object):
         team_params = {season: self._team_params(season, league_params, team_leagues_all) for season
                        in results['season'].unique()}
 
+        first_data_season = results['season'].min()
+
         ratings = self._rating_initialization(results, team_params)
 
         log_loss_value = 0
         for row in results.itertuples(index=False):
 
-            index, home_team, away_team, season = row.index, row.home_team, row.away_team, row.season
+            match_id, home_team, away_team, season = row.match_id, row.home_team, row.away_team, row.season
             outcome, skellam_draw_probability, is_pandemic = row.outcome, row.draw_probability, row.is_pandemic
             tournament_type = row.tournament_type
 
             home_params = team_params[season][home_team]
             away_params = team_params[season][away_team]
 
-            if index in indexes_for_update_ratings:
-                ratings = self._season_update_rating(ratings, home_team, away_team, index, home_params, away_params,
+            if match_id in match_ids_for_update:
+                ratings = self._season_update_rating(ratings, home_team, away_team, match_id, home_params, away_params,
                                                      missed_previous_season, changed_league, same_league)
 
             # neutral field
@@ -297,7 +276,7 @@ class GlickoSoccer(object):
             # get current team ratings
             home_rating, away_rating = ratings[home_team], ratings[away_team]
 
-            if season in {2019, 2020, 2021, 2022}:
+            if season != first_data_season:
                 # calculate outcome probabilities
                 win_probability, tie_probability, loss_probability = glicko.probabilities(home_rating,
                                                                                           away_rating,
@@ -360,7 +339,7 @@ class GlickoSoccer(object):
 
         team_leagues_all = {season: self._team_leagues(results, season) for season in seasons}
 
-        missed_prev, changed, same, indexes_for_update = self._indexes_for_update(results)
+        missed_prev, changed, same, indexes_for_update = self._update_ratings_match_ids(results)
         results = results.drop(columns=['date', 'country'])
 
         current_loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same, indexes_for_update)

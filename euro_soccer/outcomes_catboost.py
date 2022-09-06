@@ -3,14 +3,16 @@ import optuna
 import pandas as pd
 from scipy.stats import skellam
 
-from catboost_model import CatBoost, CatBoostRegressor
+from catboost_model import CatBoost, CatBoostRegressor, Pool
 from config import Config
 
 
 class OutcomesCatBoost(CatBoost):
 
     def __init__(self, target='score'):
-        super().__init__(target=target, iterations=500, learning_rate=0.02, colsample_bylevel=0.8,
+        super().__init__(target=target, loss_function='Poisson', cv_metric='test-Poisson-mean',
+                         fold_count=3,
+                         iterations=500, learning_rate=0.02, colsample_bylevel=0.8,
                          depth=8, l2_leaf_reg=3, bagging_temperature=1,
                          random_strength=1, od_wait=20)
 
@@ -27,6 +29,10 @@ class OutcomesCatBoost(CatBoost):
                          'avg_scoring_10',
                          'avg_scoring_20',
                          'avg_scoring_30',
+                         'avg_scoring_5_against',
+                         'avg_scoring_10_against',
+                         'avg_scoring_20_against',
+                         'avg_scoring_30_against',
                          'tournament_type',
                          'tournament',
                          'league',
@@ -53,25 +59,34 @@ class OutcomesCatBoost(CatBoost):
         study = optuna.create_study(direction="minimize")
 
         train = joblib.load(self.train_path)
-        x = train.loc[:, self.features]
-        y = train[self.target]
+
+        cv_dataset = Pool(data=train.loc[:, self.features],
+                          label=train[self.target],
+                          cat_features=self.cat_features)
 
         def objective(trial):
+            """boosting_type
+            Ordered — Usually provides better quality on small datasets, but it may be slower than the Plain scheme.
+            Plain — The classic gradient boosting scheme."""
+
             params = {
-                'loss_function': trial.suggest_categorical('loss_function', [self.loss_function]),
-                'od_type': trial.suggest_categorical('iterations', [self.od_type]),
-                'iterations': trial.suggest_categorical('iterations', [self.iterations]),
-                'od_wait': trial.suggest_categorical('od_wait', [10, 20, 30, 40, 50, 70, 100]),
-                'learning_rate': trial.suggest_loguniform('learning_rate', 0.0001, 0.05),
+                'loss_function': self.loss_function,
+                'od_type': self.od_type,
+                'iterations': self.iterations,
+                # 'od_wait': trial.suggest_categorical('od_wait', [10, 20, 30, 40, 50, 70, 100]),
+                'od_wait': 20,
+                'learning_rate': trial.suggest_loguniform('learning_rate', 0.04, 0.06),
 
-                "l2_leaf_reg": trial.suggest_loguniform("l2_leaf_reg", 1e-2, 1e0),
-                "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.1, 1),
-                "depth": trial.suggest_int("depth", 4, 10),
-                "boosting_type": trial.suggest_categorical("boosting_type", ["Ordered", "Plain"]),
+                # "l2_leaf_reg": trial.suggest_loguniform("l2_leaf_reg", 1e-2, 1e0),
+                "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.5, 1),
+                "depth": trial.suggest_int("depth", 6, 11),
+                # "boosting_type": trial.suggest_categorical("boosting_type", ["Ordered", "Plain"]),
+                "boosting_type": "Plain",
                 "bootstrap_type": trial.suggest_categorical("bootstrap_type", ["Bayesian", "Bernoulli", "MVS"]),
-                'min_data_in_leaf': trial.suggest_int("min_data_in_leaf", 2, 20),
-
-                'verbose': False
+                # 'min_data_in_leaf': trial.suggest_int("min_data_in_leaf", 2, 20),
+                "random_strength": trial.suggest_float("random_strength", 0.1, 10),
+                'verbose': False,
+                "allow_writing_files": False
             }
 
             if params["bootstrap_type"] == "Bayesian":
@@ -79,7 +94,7 @@ class OutcomesCatBoost(CatBoost):
             elif params["bootstrap_type"] == "Bernoulli":
                 params["subsample"] = trial.suggest_float("subsample", 0.1, 1)
 
-            return self.regressor_cv_score(params, x, y, self.cat_features)
+            return self.optuna_cv_score(params, cv_dataset)
 
         study.optimize(objective, n_trials=n_trials, n_jobs=1, gc_after_trial=True, show_progress_bar=True)
 

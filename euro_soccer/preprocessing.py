@@ -1,6 +1,7 @@
 import joblib
 import pandas as pd
 import numpy as np
+from euro_soccer.outcomes_features import TrainCreator
 from euro_soccer.outcomes_catboost import OutcomesCatBoost
 from config import Config
 
@@ -76,7 +77,8 @@ class DataPreprocessor(object):
         """Use catboost model which calculate draw probability.
         Use this probability as a parameter in glicko model."""
         if self.is_actual_draw_predictions:
-            OutcomesCatBoost().predict(matches)
+            features = TrainCreator().for_predictions(matches)
+            OutcomesCatBoost().predict(features)
 
         draw_predictions = joblib.load(Config().project_path + Config().outcomes_paths['predictions'])
 
@@ -93,7 +95,8 @@ class DataPreprocessor(object):
 
     @staticmethod
     def _remove_matches_with_unknown_team(matches: pd.DataFrame) -> pd.DataFrame:
-        """Remove matches between teams from leagues we don't know anything about."""
+        """Remove matches between teams from leagues we don't know anything about for preventing overfitting.
+        For example, match of national cup with team from third league."""
         for season in matches['season'].unique():
             no_cups = (matches.loc[matches['tournament_type'].isin({1, 2})
                                    & (matches['season'] == season), ['home_team', 'away_team']])
@@ -146,7 +149,7 @@ class DataPreprocessor(object):
         matches['season'] = matches['season'].map(lambda x: x.split('-')[0]).to_numpy('int')
 
         matches = (matches
-                   .loc[(matches['season'] >= self.min_season) & (matches['season'] <= self.max_season)]
+                   .loc[matches['season'].between(self.min_season, self.max_season)]
                    .sort_values(['date'])
                    .reset_index(drop=True))
 

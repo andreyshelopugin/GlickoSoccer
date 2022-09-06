@@ -157,12 +157,12 @@ class TrainCreator(object):
         matches = matches.drop(columns=['index'])
 
         home_scoring = (matches
-                        .loc[:, ['date', 'home_team', 'home_score', 'match_id']]
-                        .rename(columns={'home_team': 'team', 'home_score': 'score'}))
+                        .loc[:, ['date', 'home_team', 'away_team', 'home_score', 'match_id']]
+                        .rename(columns={'home_team': 'team', 'away_team': 'opp_team', 'home_score': 'score'}))
 
         away_scoring = (matches
-                        .loc[:, ['date', 'away_team', 'away_score', 'match_id']]
-                        .rename(columns={'away_team': 'team', 'away_score': 'score'}))
+                        .loc[:, ['date', 'away_team', 'home_team', 'away_score', 'match_id']]
+                        .rename(columns={'away_team': 'team', 'home_team': 'opp_team', 'away_score': 'score'}))
 
         home_scoring['is_home'] = True
         away_scoring['is_home'] = False
@@ -207,10 +207,51 @@ class TrainCreator(object):
                           .mean()
                           .to_dict())
 
+        avg_scoring_5_against = (scoring
+                                 .sort_values(['opp_team', 'date'], ascending=[True, True])
+                                 .groupby(['opp_team'], sort=False)
+                                 ['score']
+                                 .shift()
+                                 .rolling(5, min_periods=3)
+                                 .mean()
+                                 .to_dict())
+
+        avg_scoring_10_against = (scoring
+                                  .sort_values(['opp_team', 'date'], ascending=[True, True])
+                                  .groupby(['opp_team'], sort=False)
+                                  ['score']
+                                  .shift()
+                                  .rolling(10, min_periods=5)
+                                  .mean()
+                                  .to_dict())
+
+        avg_scoring_20_against = (scoring
+                                  .sort_values(['opp_team', 'date'], ascending=[True, True])
+                                  .groupby(['opp_team'], sort=False)
+                                  ['score']
+                                  .shift()
+                                  .rolling(20, min_periods=10)
+                                  .mean()
+                                  .to_dict())
+
+        avg_scoring_30_against = (scoring
+                                  .sort_values(['opp_team', 'date'], ascending=[True, True])
+                                  .groupby(['opp_team'], sort=False)
+                                  ['score']
+                                  .shift()
+                                  .rolling(30, min_periods=20)
+                                  .mean()
+                                  .to_dict())
+
         scoring['avg_scoring_5'] = scoring['index'].map(avg_scoring_5)
         scoring['avg_scoring_10'] = scoring['index'].map(avg_scoring_10)
         scoring['avg_scoring_20'] = scoring['index'].map(avg_scoring_20)
         scoring['avg_scoring_30'] = scoring['index'].map(avg_scoring_30)
+
+        scoring['avg_scoring_5_against'] = scoring['index'].map(avg_scoring_5_against)
+        scoring['avg_scoring_10_against'] = scoring['index'].map(avg_scoring_10_against)
+        scoring['avg_scoring_20_against'] = scoring['index'].map(avg_scoring_20_against)
+        scoring['avg_scoring_30_against'] = scoring['index'].map(avg_scoring_30_against)
 
         matches_columns = ['match_id',
                            'season',
@@ -291,7 +332,7 @@ class TrainCreator(object):
         return scoring
 
     def train_validation_test(self, matches: pd.DataFrame) -> tuple:
-        """"""
+        """Leave two seasons for test set."""
         matches = self.features(matches)
 
         train_validation = matches.loc[matches['season'] < 2020]

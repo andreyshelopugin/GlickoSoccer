@@ -126,8 +126,9 @@ class CatBoost(object):
                                      verbose=-1,
                                      allow_writing_files=False)
 
-    def regressor_cv_score(self, params: dict, x, y, cat_features: list):
+    def regressor_cv_score(self, params: dict, x, y, cat_features: list) -> float:
         """"""
+
         cv_dataset = Pool(data=x,
                           label=y,
                           cat_features=cat_features)
@@ -136,6 +137,14 @@ class CatBoost(object):
                   params,
                   fold_count=self.fold_count,
                   shuffle=True,
+                  seed=self.seed)[self.cv_metric].tolist()[-1]
+
+    def optuna_cv_score(self, params: dict, cv_dataset: Pool) -> float:
+        """"""
+        return cv(cv_dataset,
+                  params,
+                  fold_count=self.fold_count,
+                  shuffle=False,
                   seed=self.seed)[self.cv_metric].tolist()[-1]
 
     def cross_val_score(self):
