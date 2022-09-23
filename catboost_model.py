@@ -8,8 +8,8 @@ from sklearn.metrics import mean_squared_error
 class CatBoost(object):
 
     def __init__(self, target: str, loss_function='RMSE', cv_metric='test-RMSE-mean',
-                 iterations=1000, learning_rate=0.01,
-                 depth=8, l2_leaf_reg=3, colsample_bylevel=0.8, bagging_temperature=1, subsample=1,
+                 iterations=1000, learning_rate=0.03,
+                 depth=8, l2_leaf_reg=3, colsample_bylevel=0.8, bagging_temperature=1, subsample=0.66,
                  random_strength=1, min_data_in_leaf=20,
                  boosting_type='Ordered', bootstrap_type='Bayesian', od_type='Iter', od_wait=20,
                  fold_count=5, seed=7):
@@ -159,7 +159,7 @@ class CatBoost(object):
 
     def validation(self):
         """
-            Check quality on validation set
+            Check quality on the validation set
         """
 
         validation = joblib.load(self.test_path)
@@ -199,7 +199,7 @@ class CatBoost(object):
 
     def make_predictions(self, data: pd.DataFrame, prediction_name: str = None) -> pd.DataFrame:
         """
-            Load trained model and make predictions on new data (or test).
+            Loads trained model and makes predictions on the new data (or test).
         """
 
         if prediction_name is None:

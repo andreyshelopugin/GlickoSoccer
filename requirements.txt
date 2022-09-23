@@ -1,7 +1,8 @@
-joblib
-numpy
-pandas
-lightgbm
-catboost
-optuna
-confz
+joblib~=1.1.0
+numpy~=1.23.2
+pandas~=1.4.4
+catboost~=1.0.6
+optuna~=3.0.0
+confz~=1.6.1
+scipy~=1.8.1
+scikit-learn~=1.1.2
