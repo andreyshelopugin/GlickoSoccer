@@ -4,3 +4,4 @@ __pycache__/
 data/train.pkl
 data/test.pkl
 data/validation.pkl
+catboost_info
