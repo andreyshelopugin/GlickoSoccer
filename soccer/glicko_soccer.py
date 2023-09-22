@@ -13,7 +13,7 @@ from utils.metrics import three_outcomes_log_loss
 class GlickoSoccer(object):
 
     def __init__(self, init_mu=1500, init_rd=150, volatility=0.04, update_rd=40, lift_update_mu=30,
-                 home_advantage=28, pandemic_home_advantage=19, draw_inclination=-0.5052, new_team_update_mu=-42):
+                 home_advantage=28, pandemic_home_advantage=19, draw_correction=-0.5052, new_team_update_mu=-42):
         self.init_mu = init_mu
         self.init_rd = init_rd
         self.volatility = volatility
@@ -21,7 +21,7 @@ class GlickoSoccer(object):
         self.update_rd = update_rd
         self.home_advantage = home_advantage
         self.pandemic_home_advantage = pandemic_home_advantage
-        self.draw_inclination = draw_inclination
+        self.draw_correction = draw_correction
         self.new_team_update_mu = new_team_update_mu
         self.first_leagues = None
         self.south_america_leagues = {'Brazil. First',
@@ -202,7 +202,7 @@ class GlickoSoccer(object):
     def rate_teams(self, results: pd.DataFrame, league_params: dict) -> dict:
         """Calculate team ratings."""
 
-        glicko = Glicko2(draw_inclination=self.draw_inclination)
+        glicko = Glicko2(draw_correction=self.draw_correction)
 
         seasons = set(results['season'])
 
@@ -245,7 +245,7 @@ class GlickoSoccer(object):
 
     def predictions(self, results: pd.DataFrame, league_params: dict, start_season: int) -> pd.DataFrame:
         """"""
-        glicko = Glicko2(draw_inclination=self.draw_inclination)
+        glicko = Glicko2(draw_correction=self.draw_correction)
 
         seasons = set(results['season'])
 
@@ -308,7 +308,7 @@ class GlickoSoccer(object):
                        match_ids_for_update: set) -> float:
         """"""
 
-        glicko = Glicko2(draw_inclination=self.draw_inclination)
+        glicko = Glicko2(draw_correction=self.draw_correction)
 
         team_params = {season: self._team_params(season, league_params, team_leagues_all) for season
                        in results['season'].unique()}
@@ -414,21 +414,23 @@ class GlickoSoccer(object):
         missed_prev, changed, same, indexes_for_update = self._update_ratings_match_ids(results)
         results = results.drop(columns=['date', 'country'])
 
-        current_loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same, indexes_for_update)
+        current_loss = self.calculate_loss(results, league_params, team_leagues_all,
+                                           missed_prev, changed, same, indexes_for_update)
 
         for i in range(number_iterations):
 
-            draw_inclination_list = np.linspace(self.draw_inclination - 0.0001, self.draw_inclination + 0.0001, 6)
+            draw_correction_list = np.linspace(self.draw_correction - 0.0001, self.draw_correction + 0.0001, 6)
 
-            best_draw = self.draw_inclination
-            for draw in draw_inclination_list:
-                self.draw_inclination = draw
-                loss = self.calculate_loss(results, league_params, team_leagues_all, missed_prev, changed, same, indexes_for_update)
+            best_draw = self.draw_correction
+            for draw in draw_correction_list:
+                self.draw_correction = draw
+                loss = self.calculate_loss(results, league_params, team_leagues_all,
+                                           missed_prev, changed, same, indexes_for_update)
                 if loss < current_loss:
                     current_loss = loss
                     best_draw = draw
 
-            self.draw_inclination = best_draw
+            self.draw_correction = best_draw
 
             for league, params in league_params.items():
 
