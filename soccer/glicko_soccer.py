@@ -403,7 +403,7 @@ class GlickoSoccer(object):
         if is_params_initialization:
             league_params = self._league_params_initialization(results)
         else:
-            league_params = joblib.load(Config().project_path + Config().ratings_paths['league_params'])
+            league_params = joblib.load(Config().ratings_paths['league_params'])
 
         self.first_leagues = set(results.loc[results['tournament_type'] == 1, 'tournament'])
 
@@ -488,7 +488,7 @@ class GlickoSoccer(object):
 
                     current_loss = params_loss[optimal_params]
 
-                    joblib.dump(league_params, Config().project_path + Config().ratings_paths['league_params'])
+                    joblib.dump(league_params, Config().ratings_paths['league_params'])
 
         return league_params
 

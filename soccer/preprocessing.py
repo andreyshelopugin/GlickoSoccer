@@ -9,10 +9,11 @@ from soccer.outcomes_features import TrainCreator
 
 class DataPreprocessor(object):
 
-    def __init__(self, min_season=2010, max_season=2021, is_actual_draw_predictions=False):
+    def __init__(self, min_season=2010, max_season=2021, is_actual_draw_predictions=False, is_train=True):
         self.min_season = min_season
         self.max_season = max_season
         self.is_actual_draw_predictions = is_actual_draw_predictions
+        self.is_train = is_train
         self.international_cups = {'Europa League', 'Champions League', 'Europa Conference League',
                                    'Copa Libertadores', 'Copa Sudamericana'}
 
@@ -181,7 +182,7 @@ class DataPreprocessor(object):
             features = TrainCreator().for_predictions(matches)
             OutcomesCatBoost().predict(features)
 
-        draw_predictions = joblib.load(Config().project_path + Config().outcomes_paths['predictions'])
+        draw_predictions = pd.read_feather(Config().outcomes_paths['lgbm_predictions'], columns=['match_id', 'draw'])
 
         draw_predictions = dict(zip(draw_predictions['match_id'], draw_predictions['draw']))
 
@@ -242,7 +243,7 @@ class DataPreprocessor(object):
     def preprocessing(self, matches: pd.DataFrame = None) -> pd.DataFrame:
         """"""
         if matches is None:
-            matches = pd.read_csv(Config().project_path + Config().matches_path)
+            matches = pd.read_csv(Config().matches_path)
 
         matches = matches.reset_index()
 
@@ -301,7 +302,8 @@ class DataPreprocessor(object):
                    .sort_values(['date'])
                    .rename(columns={'index': 'match_id'}))
 
-        matches = self.draw_probability(matches)
+        if not self.is_train:
+            matches = self.draw_probability(matches)
 
         return matches
 

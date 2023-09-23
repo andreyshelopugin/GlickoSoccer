@@ -1,16 +1,11 @@
 matches_path: "data/matches.csv"
 outcomes_paths:
-  catboost:
-    train: "data/catboost/train.feather"
-    validation: "data/catboost/validation.feather"
-    test: "data/catboost/test.feather"
-    model: "saved_models/catboost_goals_model.cbm"
-    predictions: "data/catboost/outcomes_predictions.feather"
-  lgbm:
-    train: "data/lgbm/train.feather"
-    validation: "data/lgbm/validation.feather"
-    test: "data/lgbm/test.feather"
-    model: "saved_models/lgbm_goals_model.pkl"
-    predictions: "data/lgbm/outcomes_predictions.feather"
+  train: "data/train.feather"
+  validation: "data/validation.feather"
+  test: "data/test.feather"
+  catboost_model: "saved_models/catboost_goals_model.cbm"
+  catboost_predictions: "data/catboost_outcomes_predictions.feather"
+  lgbm_model: "saved_models/lgbm_goals_model.pkl"
+  lgbm_predictions: "data/lgbm_outcomes_predictions.feather"
 ratings_paths:
   league_params: "data/league_params.pkl"
