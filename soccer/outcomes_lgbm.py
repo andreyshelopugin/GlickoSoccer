@@ -75,13 +75,13 @@ class OutcomesLGBM(LightGBM):
                 'verbose': -1,
 
                 'early_stopping_round': self.early_stopping_round,
-                'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.04, step=0.000001),
+                'learning_rate': trial.suggest_float('learning_rate', 0.005, 0.03, step=0.000001),
 
-                'feature_fraction': trial.suggest_float('feature_fraction', 0.65, 0.9, step=fraction_step),
-                'num_leaves': trial.suggest_int('num_leaves', 20, 60),
+                'feature_fraction': trial.suggest_float('feature_fraction', 0.5, 0.8, step=fraction_step),
+                'num_leaves': trial.suggest_int('num_leaves', 10, 40),
                 'lambda_l1': trial.suggest_float('lambda_l1', 0.5, 4, step=0.00001),
                 'lambda_l2': trial.suggest_float('lambda_l2', 1, 5, step=0.00001),
-                'bagging_fraction': trial.suggest_float('bagging_fraction', 0.75, 1, step=fraction_step),
+                'bagging_fraction': trial.suggest_float('bagging_fraction', 0.7, 0.95, step=fraction_step),
                 'bagging_freq': trial.suggest_int('bagging_freq', 2, 200, step=2),
                 # 'min_data_in_leaf': trial.suggest_int('min_data_in_leaf', 5, 50),
 
