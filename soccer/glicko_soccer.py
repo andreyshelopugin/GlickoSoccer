@@ -322,7 +322,6 @@ class GlickoSoccer(object):
 
         log_loss_value = 0
         for row in results.itertuples(index=False):
-
             match_id, home_team, away_team, season = row.match_id, row.home_team, row.away_team, row.season
             outcome, skellam_draw_probability, is_pandemic = row.outcome, row.draw_probability, row.is_pandemic
 
@@ -414,7 +413,10 @@ class GlickoSoccer(object):
         team_leagues_all = {season: self._team_leagues(results, season) for season in seasons}
 
         missed_prev, changed, same, indexes_for_update = self._update_ratings_match_ids(results)
-        results = results.drop(columns=['date', 'country'])
+
+        results = results.loc[:, ['match_id', 'home_team', 'away_team',
+                                  'season', 'tournament_type', 'outcome',
+                                  'is_pandemic', 'draw_probability']]
 
         current_loss = self.calculate_loss(results, league_params, team_leagues_all,
                                            missed_prev, changed, same, indexes_for_update)
@@ -485,15 +487,11 @@ class GlickoSoccer(object):
                                                indexes_for_update)
 
                     if loss < current_loss:
-                        current_loss = loss
+                        print("Loss down by:", round(current_loss - loss), 'Iteration:', i)
 
-                        league_params[league] = country_params
+                        league_params[league].update(zip(league_params_copy[league], country_params))
                         joblib.dump(league_params, Config().ratings_paths['league_params'])
-
-                        print()
-                        print("Loss down by:", round(current_loss - loss), '. Iteration:', i)
-                        print(country_params)
-                        print()
+                        current_loss = loss
 
                         break
 
