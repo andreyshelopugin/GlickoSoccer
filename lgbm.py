@@ -1,6 +1,5 @@
 import joblib
 import lightgbm as lgb
-import numpy as np
 import pandas as pd
 from lightgbm import Dataset, LGBMClassifier, LGBMRegressor, cv as cv_score
 from sklearn.metrics import accuracy_score, log_loss, mean_squared_error, mean_absolute_error
@@ -176,7 +175,7 @@ class LightGBM(object):
 
         light_gbm.fit(x_train, y_train,
                       categorical_feature=self.cat_features,
-                      eval_set=(x_test, y_test))
+                      eval_set=[(x_test, y_test)])
 
         feature_importance = (pd.DataFrame(zip(x_train.columns, light_gbm.feature_importances_),
                                            columns=['feature', 'gain'])
@@ -208,6 +207,6 @@ class LightGBM(object):
 
         light_gbm.fit(x_train, y_train,
                       categorical_feature=self.cat_features,
-                      eval_set=(x_test, y_test))
+                      eval_set=[(x_test, y_test)])
 
         joblib.dump(light_gbm, self.model_path)

@@ -9,13 +9,16 @@ from lgbm import LightGBM
 
 
 class OutcomesLGBM(LightGBM):
+    """The Light GBM model predicts the number of goals for each team.
+    Afterward, we make the assumption that goals in football follow a Poisson distribution.
+    This assumption enables us to utilize the probability mass function for a Skellam distribution."""
 
     def __init__(self):
         super().__init__(target='score', objective='poisson', metric='poisson', cv_metric='valid poisson-mean',
-                         n_estimators=5000, learning_rate=0.07,
-                         num_leaves=62, feature_fraction=0.8, lambda_l1=1.11749, lambda_l2=3.50433,
-                         bagging_fraction=0.9, bagging_freq=50, min_data_in_leaf=20, early_stopping_round=100,
-                         cv=3)
+                         n_estimators=5000, learning_rate=0.011217,
+                         num_leaves=20, feature_fraction=0.45, lambda_l1=1.26258, lambda_l2=9.50238,
+                         bagging_fraction=0.844, bagging_freq=8, min_data_in_leaf=20, early_stopping_round=100,
+                         cv=5)
 
         self.features = ['is_home',
                          'is_pandemic',
@@ -77,10 +80,10 @@ class OutcomesLGBM(LightGBM):
                 'early_stopping_round': self.early_stopping_round,
                 'learning_rate': trial.suggest_float('learning_rate', 0.005, 0.03, step=0.000001),
 
-                'feature_fraction': trial.suggest_float('feature_fraction', 0.5, 0.8, step=fraction_step),
-                'num_leaves': trial.suggest_int('num_leaves', 10, 40),
+                'feature_fraction': trial.suggest_float('feature_fraction', 0.45, 0.75, step=fraction_step),
+                'num_leaves': trial.suggest_int('num_leaves', 10, 30),
                 'lambda_l1': trial.suggest_float('lambda_l1', 0.5, 4, step=0.00001),
-                'lambda_l2': trial.suggest_float('lambda_l2', 1, 5, step=0.00001),
+                'lambda_l2': trial.suggest_float('lambda_l2', 1, 10, step=0.00001),
                 'bagging_fraction': trial.suggest_float('bagging_fraction', 0.7, 0.95, step=fraction_step),
                 'bagging_freq': trial.suggest_int('bagging_freq', 2, 200, step=2),
                 # 'min_data_in_leaf': trial.suggest_int('min_data_in_leaf', 5, 50),

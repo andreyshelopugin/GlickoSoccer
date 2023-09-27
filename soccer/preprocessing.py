@@ -157,8 +157,10 @@ class DataPreprocessor(object):
         international = matches.loc[matches['country'].isin(self.international_cups)]
 
         # removes countries names in brackets
-        bracket_teams = (set(international.loc[(matches['home_team'].map(lambda x: 1 if '(' in x else 0) == 1), 'home_team'])
-                         .union(set(international.loc[(matches['away_team'].map(lambda x: 1 if '(' in x else 0) == 1), 'away_team'])))
+        bracket_teams = (set(international.loc[(matches['home_team'].map(lambda x:
+                                                                         1 if '(' in x else 0) == 1), 'home_team'])
+                         .union(set(international.loc[(matches['away_team'].map(lambda x:
+                                                                                1 if '(' in x else 0) == 1), 'away_team'])))
 
         renaming_teams = {}
         for team in bracket_teams:
@@ -260,7 +262,8 @@ class DataPreprocessor(object):
         matches = matches.loc[~matches['notes'].isin({"Awrd"})]
 
         for international_cup in self.international_cups:
-            matches['league'] = np.where((matches['tournament_type'] == 'cups') & matches['league'].str.contains(international_cup),
+            matches['league'] = np.where((matches['tournament_type'] == 'cups')
+                                         & matches['league'].str.contains(international_cup),
                                          international_cup,
                                          matches['league'])
 

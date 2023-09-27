@@ -8,7 +8,7 @@ from config import Config
 class TrainCreator(object):
     """Calculates features for boosting models and split the data into the train/test/validation sets."""
 
-    def __init__(self, test_size=0.1, random_state=7, train_test_split_season=2020):
+    def __init__(self, test_size=0.1, random_state=7, train_test_split_season=2021):
         self.test_size = test_size
         self.random_state = random_state
         self.train_test_split_season = train_test_split_season

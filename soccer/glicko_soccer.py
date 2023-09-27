@@ -3,6 +3,7 @@ from itertools import product
 import joblib
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from config import Config
 from glicko2 import Glicko2, Rating
@@ -11,8 +12,8 @@ from utils.metrics import three_outcomes_log_loss
 
 class GlickoSoccer(object):
 
-    def __init__(self, init_mu=1500, init_rd=150, volatility=0.04, update_rd=40, lift_update_mu=30,
-                 home_advantage=28, pandemic_home_advantage=19, draw_correction=-0.5052, new_team_update_mu=-42):
+    def __init__(self, init_mu=1500, init_rd=150, volatility=0.037, update_rd=40, lift_update_mu=30,
+                 home_advantage=28, pandemic_home_advantage=19, draw_correction=-0.5106, new_team_update_mu=-42):
         self.init_mu = init_mu
         self.init_rd = init_rd
         self.volatility = volatility
@@ -61,7 +62,6 @@ class GlickoSoccer(object):
 
         league_params = dict()
         for league in leagues:
-
             if league in first_leagues:
                 league_params[league] = {'init_mu': self.init_mu,
                                          'init_rd': self.init_rd,
@@ -211,7 +211,6 @@ class GlickoSoccer(object):
         team_leagues_all = {season: self._team_leagues(results, season) for season in seasons}
 
         missed_prev, changed, same, match_ids_for_update = self._update_ratings_match_ids(results)
-        results = results.drop(columns=['date', 'country'])
 
         team_params = {season: self._team_params(season, league_params, team_leagues_all) for season in seasons}
 
@@ -255,7 +254,6 @@ class GlickoSoccer(object):
         team_leagues_all = {season: self._team_leagues(results, season) for season in seasons}
 
         missed_prev, changed, same, match_ids_for_update = self._update_ratings_match_ids(results)
-        results = results.drop(columns=['date', 'country'])
 
         team_params = {season: self._team_params(season, league_params, team_leagues_all) for season in seasons}
 
@@ -289,7 +287,7 @@ class GlickoSoccer(object):
                                                                                           home_advantage,
                                                                                           skellam_draw_probability)
 
-                predictions[row.match_id] = (win_probability, tie_probability, loss_probability)
+                predictions[match_id] = (win_probability, tie_probability, loss_probability)
 
             # update team ratings
             ratings[home_team], ratings[away_team] = glicko.rate(ratings[home_team], ratings[away_team], home_advantage,
@@ -309,7 +307,8 @@ class GlickoSoccer(object):
     def calculate_loss(self, results: pd.DataFrame, league_params: dict, team_leagues_all: dict,
                        missed_previous_season: dict, changed_league: dict, same_league: dict,
                        match_ids_for_update: set) -> float:
-        """"""
+        """Calculate the log loss value for a specific set of parameters.
+        This is used in fit_params."""
 
         glicko = Glicko2(draw_correction=self.draw_correction)
 
@@ -398,7 +397,7 @@ class GlickoSoccer(object):
 
         return init_rds, update_rds, homes, pandemic_homes, lift_update_mus, new_team_update_mus
 
-    def fit_params(self, results: pd.DataFrame, number_iterations: int, is_params_initialization: True):
+    def fit_params(self, results: pd.DataFrame, number_iterations: int, is_params_initialization=True):
         """"""
 
         if is_params_initialization:
@@ -422,25 +421,36 @@ class GlickoSoccer(object):
                                            missed_prev, changed, same, indexes_for_update)
 
         decay = 0.99
-        delta = 5
+        delta = 2
         for i in range(number_iterations):
 
             delta *= decay
 
-            draw_correction_list = [self.draw_correction - 0.0001,
+            draw_correction_list = [self.draw_correction - 0.001,
                                     self.draw_correction,
-                                    self.draw_correction + 0.0001]
+                                    self.draw_correction + 0.001]
+
+            volatility_list = [self.volatility - 0.001,
+                               self.volatility,
+                               self.volatility + 0.001]
 
             best_draw = self.draw_correction
+            best_volatility = self.volatility
             for draw in draw_correction_list:
-                self.draw_correction = draw
-                loss = self.calculate_loss(results, league_params, team_leagues_all,
-                                           missed_prev, changed, same, indexes_for_update)
-                if loss < current_loss:
-                    current_loss = loss
-                    best_draw = draw
+                for volatility in volatility_list:
+                    self.draw_correction = draw
+                    self.volatility = volatility
+                    loss = self.calculate_loss(results, league_params, team_leagues_all,
+                                               missed_prev, changed, same, indexes_for_update)
+                    if loss < current_loss:
+                        current_loss = loss
+                        best_draw = draw
+                        best_volatility = volatility
 
             self.draw_correction = best_draw
+            self.volatility = best_volatility
+
+            print(self.draw_correction, self.volatility)
 
             for league, params in league_params.items():
 
@@ -452,10 +462,10 @@ class GlickoSoccer(object):
                 pandemic_home_advantage = params['pandemic_home_advantage']
                 new_team_update_mu = params['new_team_update_mu']
 
-                init_mus = [init_mu - delta, init_mu, init_mu + delta]
+                init_mus = [init_mu]
                 init_rds = [init_rd]
-                update_rds = [update_rd]
-                lift_update_mus = [lift_update_mu]
+                update_rds = [update_rd - delta, update_rd, update_rd + delta]
+                lift_update_mus = [lift_update_mu - delta, lift_update_mu, lift_update_mu + delta]
                 homes = [home_advantage - delta, home_advantage, home_advantage + delta]
                 pandemic_homes = [pandemic_home_advantage]
                 new_team_update_mus = [new_team_update_mu]
@@ -478,7 +488,7 @@ class GlickoSoccer(object):
                                            new_team_update_mus))
 
                 league_params_copy = league_params.copy()
-                for country_params in params_list:
+                for country_params in tqdm(params_list):
                     league_params_copy[league].update(zip(league_params_copy[league], country_params))
 
                     loss = self.calculate_loss(results, league_params_copy, team_leagues_all, missed_prev,
@@ -487,10 +497,13 @@ class GlickoSoccer(object):
                                                indexes_for_update)
 
                     if loss < current_loss:
-                        print("Loss down by:", round(current_loss - loss), 'Iteration:', i)
-
                         league_params[league].update(zip(league_params_copy[league], country_params))
                         joblib.dump(league_params, Config().ratings_paths['league_params'])
+
+                        print("Loss down by:", round(current_loss - loss), 'Iteration:', i)
+                        print(league, league_params[league])
+                        print()
+
                         current_loss = loss
 
                         break

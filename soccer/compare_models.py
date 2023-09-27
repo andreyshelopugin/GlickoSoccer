@@ -4,14 +4,14 @@ import pandas as pd
 from config import Config
 from soccer.glicko_soccer import GlickoSoccer
 from soccer.outcomes_catboost import OutcomesCatBoost
-from soccer.outcomes_lgbm import OutcomesLGBM
 from soccer.outcomes_features import TrainCreator
+from soccer.outcomes_lgbm import OutcomesLGBM
 from soccer.preprocessing import DataPreprocessor
 from utils.metrics import three_outcomes_log_loss
 
 
-def compare_models(start_season: int = 2020) -> pd.DataFrame:
-    """Compares models loss function values."""
+def compare_models(start_season: int = 2021) -> pd.DataFrame:
+    """Compares the loss function values of the models."""
     matches = DataPreprocessor(is_actual_draw_predictions=False, is_train=True).preprocessing()
 
     _, _, test = TrainCreator().train_validation_test(matches)
@@ -51,7 +51,7 @@ def compare_models(start_season: int = 2020) -> pd.DataFrame:
                               'pandemic_home_advantage': 0,
                               'new_team_update_mu': 0} for league in league_params}
 
-    train_matches = matches.loc[matches['season'] <= start_season]
+    train_matches = matches.loc[matches['season'] < start_season]
     mean_draw = train_matches.loc[train_matches['outcome'] == 'D'].shape[0] / train_matches.shape[0]
 
     matches['draw_probability'] = mean_draw
