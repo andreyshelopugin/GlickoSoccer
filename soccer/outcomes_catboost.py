@@ -1,4 +1,3 @@
-import joblib
 import optuna
 import pandas as pd
 from scipy.stats import skellam
@@ -8,28 +7,29 @@ from config import Config
 
 
 class OutcomesCatBoost(CatBoost):
-    """CatBoost model predicts the number of goals for each team. After that we
-    use the assumption that the goals in football conform to a Poisson distribution.
-    This assumption allows to use the probability mass function for a Skellam distribution"""
+    """The CatBoost model predicts the number of goals for each team.
+    Afterward, we make the assumption that goals in football follow a Poisson distribution.
+    This assumption enables us to utilize the probability mass function for a Skellam distribution."""
 
     def __init__(self, target='score'):
         super().__init__(target=target,
                          fold_count=3,
                          iterations=1000, learning_rate=0.05090175934770157, colsample_bylevel=0.9092111469100367,
                          depth=7, l2_leaf_reg=3.4802473839385946, bagging_temperature=1,
-                         random_strength=4.356977387977597, od_wait=50, min_data_in_leaf=18)
+                         random_strength=4.356977387977597, od_wait=100, min_data_in_leaf=18)
 
         self.loss_function = 'Poisson'
         self.cv_metric = 'test-Poisson-mean'
         self.bootstrap_type = 'MVS'
         self.boosting_type = 'Plain'
 
-        self.train_path = Config().project_path + Config().outcomes_paths['train']
-        self.validation_path = Config().project_path + Config().outcomes_paths['validation']
-        self.test_path = Config().project_path + Config().outcomes_paths['test']
-        self.predictions_path = Config().project_path + Config().outcomes_paths['predictions']
+        self.train_path = Config().outcomes_paths['train']
+        self.validation_path = Config().outcomes_paths['validation']
+        self.test_path = Config().outcomes_paths['test']
 
-        self.model_path = Config().project_path + Config().outcomes_paths['model']
+        self.predictions_path = Config().outcomes_paths['catboost_predictions']
+
+        self.model_path = Config().outcomes_paths['catboost_model']
 
         self.features = ['is_home',
                          'is_pandemic',
@@ -61,12 +61,12 @@ class OutcomesCatBoost(CatBoost):
 
         self.cat_features = ['tournament_type', 'tournament', 'league', 'opp_league']
 
-    def optuna_optimization(self, n_trials: int):
+    def optuna_optimization(self, n_trials: int) -> pd.DataFrame:
         """"""
 
         study = optuna.create_study(direction="minimize")
 
-        train = joblib.load(self.train_path)
+        train = pd.read_feather(self.train_path)
 
         cv_dataset = Pool(data=train.loc[:, self.features],
                           label=train[self.target],
@@ -85,15 +85,15 @@ class OutcomesCatBoost(CatBoost):
                 'verbose': False,
                 "allow_writing_files": False,
 
-                'od_wait': trial.suggest_categorical('od_wait', [30, 50, 70, 100]),
-                'learning_rate': trial.suggest_loguniform('learning_rate', 0.01, 0.06),
+                'od_wait': self.od_wait,
+                'learning_rate': trial.suggest_loguniform('learning_rate', 0.001, 0.08),
 
                 "l2_leaf_reg": trial.suggest_loguniform("l2_leaf_reg", 0.01, 5),
-                "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.8, 1),
-                "depth": trial.suggest_int("depth", 6, 9),
+                "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.6, 1),
+                "depth": trial.suggest_int("depth", 6, 12),
 
                 "bootstrap_type": trial.suggest_categorical("bootstrap_type", ["Bayesian", "Bernoulli", "MVS"]),
-                'min_data_in_leaf': trial.suggest_int("min_data_in_leaf", 5, 20),
+                'min_data_in_leaf': trial.suggest_int("min_data_in_leaf", 5, 50),
                 "random_strength": trial.suggest_float("random_strength", 0.1, 5),
 
             }
@@ -121,7 +121,7 @@ class OutcomesCatBoost(CatBoost):
         """Predicts the outcomes of the football matches."""
 
         if new_data is None:
-            new_data = joblib.load(self.test_path)
+            new_data = pd.read_feather(self.test_path)
 
         model = CatBoostRegressor()
 
@@ -159,6 +159,6 @@ class OutcomesCatBoost(CatBoost):
 
         predictions['away_win'] = (1 - predictions['home_win'] - predictions['draw'])
 
-        joblib.dump(predictions, self.predictions_path)
+        predictions.reset_index().to_feather(self.predictions_path)
 
         return predictions

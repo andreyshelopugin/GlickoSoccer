@@ -1,18 +1,18 @@
-import joblib
-import numpy as np
 import pandas as pd
-from catboost import CatBoostRegressor, Pool, cv
-from sklearn.metrics import mean_squared_error
+from catboost import CatBoostRegressor, CatBoostClassifier, Pool, cv
+from sklearn.metrics import mean_squared_error, mean_absolute_error, log_loss, accuracy_score
 
 
 class CatBoost(object):
 
-    def __init__(self, target: str, loss_function='RMSE', cv_metric='test-RMSE-mean',
+    def __init__(self, target: str, is_regression=True, loss_function='RMSE', cv_metric='test-RMSE-mean',
                  iterations=1000, learning_rate=0.03,
                  depth=8, l2_leaf_reg=3, colsample_bylevel=0.8, bagging_temperature=1, subsample=0.66,
                  random_strength=1, min_data_in_leaf=20,
                  boosting_type='Ordered', bootstrap_type='Bayesian', od_type='Iter', od_wait=20,
                  fold_count=5, seed=7):
+
+        self.is_regression = is_regression
 
         self.train_path = ''
         self.validation_path = ''
@@ -89,7 +89,7 @@ class CatBoost(object):
                                      bootstrap_type=self.bootstrap_type,
                                      od_type=self.od_type,
                                      od_wait=self.od_wait,
-                                     verbose=-1,
+                                     verbose=False,
                                      allow_writing_files=False)
 
         # subsample
@@ -107,7 +107,7 @@ class CatBoost(object):
                                      bootstrap_type=self.bootstrap_type,
                                      od_type=self.od_type,
                                      od_wait=self.od_wait,
-                                     verbose=-1,
+                                     verbose=False,
                                      allow_writing_files=False)
 
         else:
@@ -123,21 +123,62 @@ class CatBoost(object):
                                      bootstrap_type=self.bootstrap_type,
                                      od_type=self.od_type,
                                      od_wait=self.od_wait,
-                                     verbose=-1,
+                                     verbose=False,
                                      allow_writing_files=False)
 
-    def regressor_cv_score(self, params: dict, x, y, cat_features: list) -> float:
+    def classifier(self):
         """"""
+        # bagging_temperature
+        if self.bootstrap_type == "Bayesian":
+            return CatBoostClassifier(loss_function=self.loss_function,
+                                      iterations=self.iterations,
+                                      learning_rate=self.learning_rate,
+                                      depth=self.depth,
+                                      l2_leaf_reg=self.l2_leaf_reg,
+                                      colsample_bylevel=self.colsample_bylevel,
+                                      bagging_temperature=self.bagging_temperature,
+                                      random_strength=self.random_strength,
+                                      min_data_in_leaf=self.min_data_in_leaf,
+                                      boosting_type=self.boosting_type,
+                                      bootstrap_type=self.bootstrap_type,
+                                      od_type=self.od_type,
+                                      od_wait=self.od_wait,
+                                      verbose=False,
+                                      allow_writing_files=False)
 
-        cv_dataset = Pool(data=x,
-                          label=y,
-                          cat_features=cat_features)
+        # subsample
+        elif self.bootstrap_type == "Bernoulli":
+            return CatBoostClassifier(loss_function=self.loss_function,
+                                      iterations=self.iterations,
+                                      learning_rate=self.learning_rate,
+                                      depth=self.depth,
+                                      l2_leaf_reg=self.l2_leaf_reg,
+                                      colsample_bylevel=self.colsample_bylevel,
+                                      subsample=self.subsample,
+                                      random_strength=self.random_strength,
+                                      min_data_in_leaf=self.min_data_in_leaf,
+                                      boosting_type=self.boosting_type,
+                                      bootstrap_type=self.bootstrap_type,
+                                      od_type=self.od_type,
+                                      od_wait=self.od_wait,
+                                      verbose=False,
+                                      allow_writing_files=False)
 
-        return cv(cv_dataset,
-                  params,
-                  fold_count=self.fold_count,
-                  shuffle=True,
-                  seed=self.seed)[self.cv_metric].tolist()[-1]
+        else:
+            return CatBoostClassifier(loss_function=self.loss_function,
+                                      iterations=self.iterations,
+                                      learning_rate=self.learning_rate,
+                                      depth=self.depth,
+                                      l2_leaf_reg=self.l2_leaf_reg,
+                                      colsample_bylevel=self.colsample_bylevel,
+                                      random_strength=self.random_strength,
+                                      min_data_in_leaf=self.min_data_in_leaf,
+                                      boosting_type=self.boosting_type,
+                                      bootstrap_type=self.bootstrap_type,
+                                      od_type=self.od_type,
+                                      od_wait=self.od_wait,
+                                      verbose=False,
+                                      allow_writing_files=False)
 
     def optuna_cv_score(self, params: dict, cv_dataset: Pool) -> float:
         """"""
@@ -149,45 +190,59 @@ class CatBoost(object):
 
     def cross_val_score(self):
         """"""
-        train = joblib.load(self.train_path)
+        train = pd.read_feather(self.train_path)
         x, y = train.loc[:, self.features], train[self.target]
 
-        return self.regressor_cv_score(params=self.params(),
-                                       x=x,
-                                       y=y,
-                                       cat_features=self.cat_features)
+        cv_dataset = Pool(data=x,
+                          label=y,
+                          cat_features=self.cat_features)
 
-    def validation(self):
+        return cv(cv_dataset,
+                  self.params(),
+                  fold_count=self.fold_count,
+                  shuffle=True,
+                  seed=self.seed)[self.cv_metric].tolist()[-1]
+
+    def validation(self) -> pd.DataFrame:
         """
-            Check quality on the validation set
+            Check the model quality on the validation set.
         """
 
-        validation = joblib.load(self.test_path)
+        validation = pd.read_feather(self.test_path)
 
         x = validation.loc[:, self.features]
         y = validation[self.target]
 
-        models_list = joblib.load(self.model_path)
+        if self.is_regression:
+            model = CatBoostRegressor()
+            model.load_model(self.model_path)
+            y_hat = model.predict(x)
 
-        y_hat = np.mean([model.predict(x) for model in models_list], axis=0, dtype=np.float64)
+            print('MSE: ', mean_squared_error(y, y_hat))
+            print('MAE: ', mean_absolute_error(y, y_hat))
+        else:
+            model = CatBoostClassifier()
+            model.load_model(self.model_path)
+            y_hat = model.predict_proba(x)
 
-        trees = [model.tree_count_ for model in models_list]
-
-        print("Trees", self.target, trees)
-        print('MSE: ', mean_squared_error(y, y_hat))
+            print('LogLoss: ', log_loss(y, y_hat))
+            print('Accuracy: ', accuracy_score(y, y_hat.round()))
 
         return validation
 
     def save_model(self):
         """"""
-        train_set = joblib.load(self.train_path)
-        validation_set = joblib.load(self.test_path)
+        train_set = pd.read_feather(self.train_path)
+        validation_set = pd.read_feather(self.test_path)
 
         x_train, y_train = train_set.loc[:, self.features], train_set[self.target]
         x_val, y_val = validation_set.loc[:, self.features], validation_set[self.target]
 
         # unfitted model
-        model = self.regressor()
+        if self.is_regression:
+            model = self.regressor()
+        else:
+            model = self.classifier()
 
         model.fit(x_train, y_train,
                   cat_features=self.cat_features,

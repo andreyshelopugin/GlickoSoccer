@@ -1,18 +1,18 @@
-import joblib
 import numpy as np
 import pandas as pd
 
 from config import Config
-from soccer.outcomes_catboost import OutcomesCatBoost
+from soccer.outcomes_lgbm import OutcomesLGBM
 from soccer.outcomes_features import TrainCreator
 
 
 class DataPreprocessor(object):
 
-    def __init__(self, min_season=2010, max_season=2021, is_actual_draw_predictions=False):
+    def __init__(self, min_season=2010, max_season=2022, is_actual_draw_predictions=False, is_train=True):
         self.min_season = min_season
         self.max_season = max_season
         self.is_actual_draw_predictions = is_actual_draw_predictions
+        self.is_train = is_train
         self.international_cups = {'Europa League', 'Champions League', 'Europa Conference League',
                                    'Copa Libertadores', 'Copa Sudamericana'}
 
@@ -157,8 +157,10 @@ class DataPreprocessor(object):
         international = matches.loc[matches['country'].isin(self.international_cups)]
 
         # removes countries names in brackets
-        bracket_teams = (set(international.loc[(matches['home_team'].map(lambda x: 1 if '(' in x else 0) == 1), 'home_team'])
-                         .union(set(international.loc[(matches['away_team'].map(lambda x: 1 if '(' in x else 0) == 1), 'away_team'])))
+        bracket_teams = (set(international.loc[(matches['home_team'].map(lambda x:
+                                                                         1 if '(' in x else 0) == 1), 'home_team'])
+                         .union(set(international.loc[(matches['away_team'].map(lambda x:
+                                                                                1 if '(' in x else 0) == 1), 'away_team'])))
 
         renaming_teams = {}
         for team in bracket_teams:
@@ -173,31 +175,29 @@ class DataPreprocessor(object):
         return matches
 
     def draw_probability(self, matches: pd.DataFrame) -> pd.DataFrame:
-        """Uses catboost model that calculates draw probability.
-        Uses this probability as a parameter in the glicko model."""
+        """Utilizes a gradient boosting model that calculates draw probability and
+        uses this probability as a parameter in the modified Glicko model."""
 
         # update match outcomes predictions
         if self.is_actual_draw_predictions:
             features = TrainCreator().for_predictions(matches)
-            OutcomesCatBoost().predict(features)
+            OutcomesLGBM().predict(features)
 
-        draw_predictions = joblib.load(Config().project_path + Config().outcomes_paths['predictions'])
+        draw_predictions = pd.read_feather(Config().outcomes_paths['lgbm_predictions'], columns=['match_id', 'draw'])
 
         draw_predictions = dict(zip(draw_predictions['match_id'], draw_predictions['draw']))
 
         matches['draw_probability'] = matches['match_id'].map(draw_predictions)
 
-        # we can not apply skellam model, so we use the average as a draw probability
         mean_draw = matches.loc[matches['outcome'] == 'D'].shape[0] / matches.shape[0]
-
         matches['draw_probability'] = matches['draw_probability'].fillna(mean_draw)
 
         return matches
 
     @staticmethod
     def _remove_matches_with_unknown_team(matches: pd.DataFrame) -> pd.DataFrame:
-        """Removes matches featuring teams from leagues we don't know anything about for preventing overfitting.
-        For example, match of national cup with team from third league will be removed"""
+        """Remove matches featuring teams from unknown leagues to prevent overfitting.
+        For instance, matches from the national cup involving third league teams will be removed."""
         for season in matches['season'].unique():
             no_cups = (matches.loc[matches['tournament_type'].isin({1, 2})
                                    & (matches['season'] == season), ['home_team', 'away_team']])
@@ -214,7 +214,7 @@ class DataPreprocessor(object):
 
     @staticmethod
     def _get_finals(matches: pd.DataFrame, is_end_of_season=True) -> pd.DataFrame:
-        """Gets final matches for neutral field games detection"""
+        """Get final matches for the detection of neutral field games."""
 
         if is_end_of_season:
             condition = (matches['tournament_type'] == 3)
@@ -232,7 +232,7 @@ class DataPreprocessor(object):
                                               4,
                                               matches['tournament_type'])
 
-        # final matches finished with penalty series are considered as a tie
+        # final matches that finished with penalty shootouts are considered as ties.
         matches['outcome'] = np.where((matches['tournament_type'] == 4) & (matches['notes'] == 'Pen'),
                                       'D',
                                       matches['outcome'])
@@ -242,7 +242,7 @@ class DataPreprocessor(object):
     def preprocessing(self, matches: pd.DataFrame = None) -> pd.DataFrame:
         """"""
         if matches is None:
-            matches = pd.read_csv(Config().project_path + Config().matches_path)
+            matches = pd.read_csv(Config().matches_path)
 
         matches = matches.reset_index()
 
@@ -262,7 +262,8 @@ class DataPreprocessor(object):
         matches = matches.loc[~matches['notes'].isin({"Awrd"})]
 
         for international_cup in self.international_cups:
-            matches['league'] = np.where((matches['tournament_type'] == 'cups') & matches['league'].str.contains(international_cup),
+            matches['league'] = np.where((matches['tournament_type'] == 'cups')
+                                         & matches['league'].str.contains(international_cup),
                                          international_cup,
                                          matches['league'])
 
@@ -288,8 +289,7 @@ class DataPreprocessor(object):
         matches['outcome'] = np.select(conditions, outcomes)
 
         # matches played during the pandemia
-        is_pandemic = (matches['date'] > '2020-03-03') & (matches['date'] < '2021-06-06')
-        matches['is_pandemic'] = np.where(is_pandemic, 1, 0)
+        matches['is_pandemic'] = (matches['date'] > '2020-03-03') & (matches['date'] < '2021-06-06')
 
         matches = matches.loc[~matches['tournament'].isin(self.small_tournaments)]
 
@@ -301,7 +301,8 @@ class DataPreprocessor(object):
                    .sort_values(['date'])
                    .rename(columns={'index': 'match_id'}))
 
-        matches = self.draw_probability(matches)
+        if not self.is_train:
+            matches = self.draw_probability(matches)
 
         return matches
 

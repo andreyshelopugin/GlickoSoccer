@@ -1,6 +1,4 @@
 from math import exp, log, sqrt, pi
-from typing import Tuple
-
 from dataclasses import dataclass
 
 
@@ -13,7 +11,7 @@ class Rating:
 
 class Glicko2(object):
 
-    def __init__(self, mu=1500., rd=200., tau=1, epsilon=0.000001, draw_inclination=-0.2):
+    def __init__(self, mu=1500., rd=200., tau=1, epsilon=0.000001, draw_correction=-0.2):
         self.mu = mu
         self.rd = rd
         self.tau = tau
@@ -21,7 +19,7 @@ class Glicko2(object):
         self.q1 = 400 / log(10)  # 173.71
         self.g_constant = 1.5 / pi ** 2
         self.epsilon = epsilon
-        self.draw_inclination = draw_inclination
+        self.draw_correction = draw_correction
 
     def _convert_into_glicko2(self, rating: Rating) -> Rating:
         """
@@ -50,13 +48,13 @@ class Glicko2(object):
 
     def _expected_score(self, mu: float, mu_opp: float, g: float, skellam_draw_probability: float) -> float:
         """
-            Calculate expected score of game.
+            Calculate the expected score of the game.
             It is used in step 3 and others.
         """
 
         delta_mu = g * (mu - mu_opp)
 
-        draw_coefficient = 1 + exp(self.draw_inclination + skellam_draw_probability)
+        draw_coefficient = 1 + exp(self.draw_correction + skellam_draw_probability)
         exp_delta_mu = exp(delta_mu)
 
         win_probability = 1 / (1 + draw_coefficient / exp_delta_mu)
@@ -86,18 +84,18 @@ class Glicko2(object):
         return delta
 
     @staticmethod
-    def f(rating_improvement: float, v: float, rating: Rating, x: float) -> float:
+    def _f(rating_improvement_squared: float, v: float, phi_squared: float, volatility_squared: float, x: float) -> float:
         """
             Used in step 5.
         """
         exp_x = exp(x)
 
-        temp_var = (rating.rd ** 2 + v + exp_x)
+        temp_var = (phi_squared + v + exp_x)
 
-        first_term = exp_x * (rating_improvement ** 2 - temp_var) / (2 * temp_var ** 2)
+        first_term = exp_x * (rating_improvement_squared - temp_var) / (2 * temp_var ** 2)
 
         # second_term = (x - log(vol ** 2)) / (self.tau ** 2)
-        second_term = (x - log(rating.volatility ** 2))
+        second_term = (x - log(volatility_squared))
 
         return first_term - second_term
 
@@ -110,6 +108,9 @@ class Glicko2(object):
         mu = rating.mu
         phi = rating.rd
 
+        phi_squared = phi ** 2
+        volatility_squared = rating.volatility ** 2
+
         mu_opp = rating_opp.mu
         phi_opp = rating_opp.rd
 
@@ -117,25 +118,26 @@ class Glicko2(object):
         expected_score = self._expected_score(mu, mu_opp, g, skellam_draw_probability)
         v = self._v(g, expected_score)
         rating_improvement = self._rating_improvement(v, g, outcome, expected_score)
+        rating_improvement_squared = rating_improvement ** 2
 
-        a = log(rating.volatility ** 2)
+        a = log(volatility_squared)
 
-        temp = (rating_improvement ** 2 - phi ** 2 - v)
+        temp = (rating_improvement_squared - phi ** 2 - v)
         if temp > 0:
             b = log(temp)
         else:
             k = 1
-            while self.f(rating_improvement, v, rating, a - k * self.tau) < 0:
+            while self._f(rating_improvement_squared, v, phi_squared, volatility_squared, a - k * self.tau) < 0:
                 k += 1
 
             b = (a - k * self.tau)
 
-        f_a = self.f(rating_improvement, v, rating, a)
-        f_b = self.f(rating_improvement, v, rating, b)
+        f_a = self._f(rating_improvement_squared, v, phi_squared, volatility_squared, a)
+        f_b = self._f(rating_improvement_squared, v, phi_squared, volatility_squared, b)
 
         while abs(b - a) > self.epsilon:
             c = a + (a - b) * f_a / (f_b - f_a)
-            f_c = self.f(rating_improvement, v, rating, c)
+            f_c = self._f(rating_improvement_squared, v, phi_squared, volatility_squared, c)
 
             if f_c * f_b < 0:
                 a = b
@@ -168,11 +170,11 @@ class Glicko2(object):
         mu_opp = rating_opp.mu
         phi_opp = rating_opp.rd
 
-        new_volatility = self._update_volatility(rating, rating_opp, outcome, skellam_draw_probability)
-
         g = self._g(phi, phi_opp)
         expected_score = self._expected_score(mu, mu_opp, g, skellam_draw_probability)
         v = self._v(g, expected_score)
+
+        new_volatility = self._update_volatility(rating, rating_opp, outcome, skellam_draw_probability)
 
         # step 6
         squared_phi_star = (phi ** 2 + new_volatility ** 2)
@@ -195,11 +197,12 @@ class Glicko2(object):
         return Rating(rating.mu + addition, rating.rd, rating.volatility)
 
     def rate(self, home_rating: Rating, away_rating: Rating, advantage: float, outcome: str,
-             skellam_draw_probability: float) -> Tuple[Rating, Rating]:
+             skellam_draw_probability: float) -> tuple[Rating, Rating]:
         """
-            home_rating - rating of home team.
-            away_rating - rating of away team.
-            advantage - home court, injures, etc. advantage of winning team, can be negative.
+            home_rating - the rating of the home team.
+            away_rating - the rating of the away team.
+            advantage - the advantage of the winning team,
+                        which can be negative and includes factors like home filed advantage, injuries, etc.
         """
         # take into account the advantage
         increased_home_rating = self._increase_mu(home_rating, advantage)
@@ -231,7 +234,7 @@ class Glicko2(object):
         return updated_home_rating, updated_away_rating
 
     def probabilities(self, team: Rating, opp_team: Rating, advantage: float,
-                      skellam_draw_probability: float) -> Tuple[float, float, float]:
+                      skellam_draw_probability: float) -> tuple[float, float, float]:
         """
             Input ratings are in original scale.
             Return the probabilities of outcomes.
@@ -247,7 +250,7 @@ class Glicko2(object):
 
         delta_mu = g * (mu - mu_opp)
 
-        draw_coefficient = 1 + exp(self.draw_inclination + skellam_draw_probability)
+        draw_coefficient = 1 + exp(self.draw_correction + skellam_draw_probability)
         exp_delta_mu = exp(delta_mu)
 
         win_probability = 1 / (1 + draw_coefficient / exp_delta_mu)
