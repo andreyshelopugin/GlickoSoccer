@@ -261,7 +261,7 @@ class DataPreprocessor(object):
 
         matches = (matches
                    .loc[matches['season'].between(self.min_season, self.max_season)]
-                   .sort_values(['date'])
+                   .sort_values('date')
                    .reset_index(drop=True))
 
         for international_cup in self.international_cups:
