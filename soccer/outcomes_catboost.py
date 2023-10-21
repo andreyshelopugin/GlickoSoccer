@@ -130,23 +130,19 @@ class OutcomesCatBoost(CatBoost):
         new_data['prediction'] = model.predict(new_data.loc[:, self.features])
 
         home = (new_data
-                .loc[(new_data['is_home'] == 1), ['match_id', 'prediction']]
+                .loc[(new_data['is_home'] == True), ['match_id', 'prediction']]
                 .dropna()
                 .rename(columns={'prediction': 'home_goals'}))
 
         away = (new_data
-                .loc[(new_data['is_home'] == 0), ['match_id', 'prediction']]
+                .loc[(new_data['is_home'] == False), ['match_id', 'prediction']]
                 .dropna()
                 .rename(columns={'opponent': 'team', 'prediction': 'away_goals'}))
 
         home['match_id'] = home['match_id'].to_numpy('int')
         away['match_id'] = away['match_id'].to_numpy('int')
 
-        predictions = home.merge(away, how='inner', on=['match_id'])
-
-        predictions = (predictions
-                       .sort_values(['match_id'])
-                       .reset_index(drop=True))
+        predictions = home.merge(away, how='inner', on='match_id')
 
         # use the assumption that goals are Poisson distributed
         predictions['home_win'] = (predictions

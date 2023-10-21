@@ -62,7 +62,7 @@ class TrainCreator(object):
         return team_leagues
 
     def features(self, matches: pd.DataFrame) -> pd.DataFrame:
-        """"""
+        """Calculate window functions based on goals scored in the previous matches."""
 
         # gets "index" column
         matches = matches.reset_index()
@@ -106,7 +106,7 @@ class TrainCreator(object):
         matches['home_max_score_10'] = matches['index'].map(self.rolling_stats(matches, True, 'max', 10, 5))
         matches['away_max_score_10'] = matches['index'].map(self.rolling_stats(matches, False, 'max', 10, 5))
 
-        matches = matches.drop(columns=['index'])
+        matches = matches.drop(columns='index')
 
         team_leagues = self._team_leagues(matches)
 
@@ -236,7 +236,7 @@ class TrainCreator(object):
                    .drop(columns=['date', 'index'])
                    .merge(matches.loc[:, matches_columns], how='left', on=['match_id']))
 
-        is_home = (scoring['is_home'] == 1)
+        is_home = (scoring['is_home'] == True)
 
         scoring['league'] = np.where(is_home, scoring['home_league'], scoring['away_league'])
         scoring['opp_league'] = np.where(is_home, scoring['away_league'], scoring['home_league'])
