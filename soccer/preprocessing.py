@@ -2,17 +2,17 @@ import numpy as np
 import pandas as pd
 
 from config import Config
-from soccer.outcomes_lgbm import OutcomesLGBM
 from soccer.outcomes_features import TrainCreator
+from soccer.outcomes_lgbm import OutcomesLGBM
 
 
 class DataPreprocessor(object):
 
-    def __init__(self, min_season=2010, max_season=2022, is_actual_draw_predictions=False, is_train=True):
+    def __init__(self, min_season=2010, max_season=2022, is_actual_draw_predictions=False, is_boosting_train=True):
         self.min_season = min_season
         self.max_season = max_season
         self.is_actual_draw_predictions = is_actual_draw_predictions
-        self.is_train = is_train
+        self.is_boosting_train = is_boosting_train
         self.international_cups = {'Europa League', 'Champions League', 'Europa Conference League',
                                    'Copa Libertadores', 'Copa Sudamericana'}
 
@@ -174,26 +174,6 @@ class DataPreprocessor(object):
 
         return matches
 
-    def draw_probability(self, matches: pd.DataFrame) -> pd.DataFrame:
-        """Utilizes a gradient boosting model that calculates draw probability and
-        uses this probability as a parameter in the modified Glicko model."""
-
-        # update match outcomes predictions
-        if self.is_actual_draw_predictions:
-            features = TrainCreator().for_predictions(matches)
-            OutcomesLGBM().predict(features)
-
-        draw_predictions = pd.read_feather(Config().outcomes_paths['lgbm_predictions'], columns=['match_id', 'draw'])
-
-        draw_predictions = dict(zip(draw_predictions['match_id'], draw_predictions['draw']))
-
-        matches['draw_probability'] = matches['match_id'].map(draw_predictions)
-
-        mean_draw = matches.loc[matches['outcome'] == 'D'].shape[0] / matches.shape[0]
-        matches['draw_probability'] = matches['draw_probability'].fillna(mean_draw)
-
-        return matches
-
     @staticmethod
     def _remove_matches_with_unknown_team(matches: pd.DataFrame) -> pd.DataFrame:
         """Remove matches featuring teams from unknown leagues to prevent overfitting.
@@ -209,6 +189,27 @@ class DataPreprocessor(object):
                                    & matches['away_team'].isin(known_teams))
 
             matches = matches.loc[(matches['season'] != season) | is_both_teams_known]
+
+        return matches
+
+    def draw_probability(self, matches: pd.DataFrame) -> pd.DataFrame:
+        """Utilizes a gradient boosting model that calculates draw probability and
+        uses this probability as a parameter in the modified Glicko model."""
+
+        # update match outcomes predictions
+        if self.is_actual_draw_predictions:
+            features = TrainCreator().for_predictions(matches)
+            predictions = OutcomesLGBM().predict(features)
+            draw_predictions = predictions.loc[:, ['match_id', 'draw']]
+            draw_predictions = dict(zip(draw_predictions['match_id'], draw_predictions['draw']))
+        else:
+            draw_predictions = pd.read_feather(Config().outcomes_paths['lgbm_predictions'], columns=['match_id', 'draw'])
+            draw_predictions = dict(zip(draw_predictions['match_id'], draw_predictions['draw']))
+
+        matches['draw_probability'] = matches['match_id'].map(draw_predictions)
+
+        mean_draw = matches.loc[matches['outcome'] == 'D'].shape[0] / matches.shape[0]
+        matches['draw_probability'] = matches['draw_probability'].fillna(mean_draw)
 
         return matches
 
@@ -244,22 +245,24 @@ class DataPreprocessor(object):
         if matches is None:
             matches = pd.read_csv(Config().matches_path)
 
+        # create column 'index'
         matches = matches.reset_index()
-
-        matches['date'] = pd.to_datetime(matches['date'].str.replace('29.02', '28.02'), format='%d.%m.%Y', dayfirst=True)
-
-        matches['season'] = matches['season'].map(lambda x: x.split('-')[0]).to_numpy('int')
-
-        matches = (matches
-                   .loc[matches['season'].between(self.min_season, self.max_season)]
-                   .sort_values(['date'])
-                   .reset_index(drop=True))
 
         # drop future matches: we need only ratings, not further predictions
         matches = matches.loc[matches['home_score'] != '-']
 
         # drop forfeiting wins.
         matches = matches.loc[~matches['notes'].isin({"Awrd"})]
+
+        matches['date'] = pd.to_datetime(matches['date'].str.replace('29.02', '28.02'), format='%d.%m.%Y', dayfirst=True)
+
+        # 2023-2024 -> 2023
+        matches['season'] = matches['season'].map(lambda x: x.split('-')[0]).to_numpy('int')
+
+        matches = (matches
+                   .loc[matches['season'].between(self.min_season, self.max_season)]
+                   .sort_values(['date'])
+                   .reset_index(drop=True))
 
         for international_cup in self.international_cups:
             matches['league'] = np.where((matches['tournament_type'] == 'cups')
@@ -271,12 +274,15 @@ class DataPreprocessor(object):
                                          matches["league"],
                                          matches["country"] + '. ' + matches["tournament_type"].str.title())
 
+        matches = matches.loc[~matches['tournament'].isin(self.small_tournaments)]
+
         matches['tournament_type'] = matches['tournament_type'].map({'first': 1,
                                                                      'second': 2,
                                                                      'cups': 3,
                                                                      'super_cups': 4})
 
         matches = self._rename_teams(matches)
+        matches = self._remove_matches_with_unknown_team(matches)
 
         # outcome
         matches[['home_score', 'away_score']] = matches[['home_score', 'away_score']].to_numpy('int')
@@ -288,20 +294,17 @@ class DataPreprocessor(object):
         outcomes = ['H', 'D', 'A']
         matches['outcome'] = np.select(conditions, outcomes)
 
-        # matches played during the pandemia
-        matches['is_pandemic'] = (matches['date'] > '2020-03-03') & (matches['date'] < '2021-06-06')
-
-        matches = matches.loc[~matches['tournament'].isin(self.small_tournaments)]
-
-        matches = self._remove_matches_with_unknown_team(matches)
         matches = self._get_finals(matches)
 
+        # matches played during the pandemic
+        matches['is_pandemic'] = (matches['date'] > '2020-03-03') & (matches['date'] < '2021-06-06')
+
         matches = (matches
-                   .drop(columns=['notes'])
-                   .sort_values(['date'])
+                   .drop(columns='notes')
+                   .sort_values('date')
                    .rename(columns={'index': 'match_id'}))
 
-        if not self.is_train:
+        if not self.is_boosting_train:
             matches = self.draw_probability(matches)
 
         return matches

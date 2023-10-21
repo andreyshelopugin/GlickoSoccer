@@ -12,7 +12,7 @@ from utils.metrics import three_outcomes_log_loss
 
 def compare_models(start_season: int = 2021) -> pd.DataFrame:
     """Compares the loss function values of the models."""
-    matches = DataPreprocessor(is_actual_draw_predictions=False, is_train=True).preprocessing()
+    matches = DataPreprocessor(is_actual_draw_predictions=False, is_boosting_train=True).preprocessing()
 
     _, _, test = TrainCreator().train_validation_test(matches)
 
@@ -31,7 +31,7 @@ def compare_models(start_season: int = 2021) -> pd.DataFrame:
                         .drop(columns=['home_goals', 'away_goals']))
 
     # glicko predictions
-    matches = DataPreprocessor(is_actual_draw_predictions=False, is_train=False).preprocessing()
+    matches = DataPreprocessor(is_actual_draw_predictions=False, is_boosting_train=False).preprocessing()
 
     league_params = joblib.load(Config().ratings_paths['league_params'])
 
