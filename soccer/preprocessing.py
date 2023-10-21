@@ -226,10 +226,10 @@ class DataPreprocessor(object):
                   .loc[condition]
                   .sort_values(['tournament', 'season', 'date'])
                   .drop_duplicates(['season', 'tournament'], keep='last')
-                  ['index']
+                  ['match_id']
                   .unique())
 
-        matches['tournament_type'] = np.where(matches['index'].isin(finals) | (matches['notes'] == 'Neutral'),
+        matches['tournament_type'] = np.where(matches['match_id'].isin(finals) | (matches['notes'] == 'Neutral'),
                                               4,
                                               matches['tournament_type'])
 
@@ -245,8 +245,8 @@ class DataPreprocessor(object):
         if matches is None:
             matches = pd.read_csv(Config().matches_path)
 
-        # create column 'index'
-        matches = matches.reset_index()
+        # create match_id
+        matches = matches.reset_index(drop=True).reset_index().rename(columns={'index': 'match_id'})
 
         # drop future matches: we need only ratings, not further predictions
         matches = matches.loc[matches['home_score'] != '-']
@@ -296,13 +296,10 @@ class DataPreprocessor(object):
 
         matches = self._get_finals(matches)
 
+        matches = matches.drop(columns='notes')
+
         # matches played during the pandemic
         matches['is_pandemic'] = (matches['date'] > '2020-03-03') & (matches['date'] < '2021-06-06')
-
-        matches = (matches
-                   .drop(columns='notes')
-                   .sort_values('date')
-                   .rename(columns={'index': 'match_id'}))
 
         if not self.is_boosting_train:
             matches = self.draw_probability(matches)

@@ -136,7 +136,7 @@ class OutcomesLGBM(LightGBM):
         # use the assumption that goals are Poisson distributed
         predictions['home_win'] = (predictions
                                    .loc[:, ['home_goals', 'away_goals']]
-                                   .apply(lambda df: skellam.pmf([range(1, 30)], df[0], df[1]).sum(), axis=1))
+                                   .apply(lambda df: skellam.pmf(list(range(1, 20)), df[0], df[1]).sum(), axis=1))
 
         predictions['draw'] = (predictions
                                .loc[:, ['home_goals', 'away_goals']]

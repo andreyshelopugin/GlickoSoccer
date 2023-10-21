@@ -19,17 +19,10 @@ class TrainCreator(object):
         """"""
         if is_home:
             team = 'home_team'
-            if is_against:
-                stats = 'away_score'
-            else:
-                stats = 'home_score'
-
+            stats = 'away_score' if is_against else 'home_score'
         else:
             team = 'away_team'
-            if is_against:
-                stats = 'home_score'
-            else:
-                stats = 'away_score'
+            stats = 'home_score' if is_against else 'away_score'
 
         group_by_object = (matches
                            .sort_values([team, 'date'], ascending=[True, True])
@@ -65,7 +58,7 @@ class TrainCreator(object):
         """Calculate window functions based on goals scored in the previous matches."""
 
         # gets "index" column
-        matches = matches.reset_index()
+        matches = matches.reset_index(drop=True).reset_index()
 
         matches['home_mean_score_5'] = matches['index'].map(self.rolling_stats(matches, True, 'mean', 5, 3))
         matches['away_mean_score_5'] = matches['index'].map(self.rolling_stats(matches, False, 'mean', 5, 3))
