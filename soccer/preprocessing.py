@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -197,7 +199,7 @@ class DataPreprocessor(object):
         uses this probability as a parameter in the modified Glicko model."""
 
         # update match outcomes predictions
-        if self.is_actual_draw_predictions:
+        if self.is_actual_draw_predictions or (os.path.exists(Config().outcomes_paths['lgbm_predictions']) == False):
             features = TrainCreator().for_predictions(matches)
             predictions = OutcomesLGBM().predict(features)
             draw_predictions = predictions.loc[:, ['match_id', 'draw']]
@@ -265,13 +267,13 @@ class DataPreprocessor(object):
                    .reset_index(drop=True))
 
         for international_cup in self.international_cups:
-            matches['league'] = np.where((matches['tournament_type'] == 'cups')
-                                         & matches['league'].str.contains(international_cup),
-                                         international_cup,
-                                         matches['league'])
+            matches['country'] = np.where((matches['tournament_type'] == 'cups')
+                                          & matches['country'].str.contains(international_cup),
+                                          international_cup,
+                                          matches['country'])
 
-        matches["tournament"] = np.where(matches["league"].isin(self.international_cups),
-                                         matches["league"],
+        matches["tournament"] = np.where(matches["country"].isin(self.international_cups),
+                                         matches["country"],
                                          matches["country"] + '. ' + matches["tournament_type"].str.title())
 
         matches = matches.loc[~matches['tournament'].isin(self.small_tournaments)]

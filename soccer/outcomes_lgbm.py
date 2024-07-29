@@ -15,9 +15,9 @@ class OutcomesLGBM(LightGBM):
 
     def __init__(self):
         super().__init__(target='score', objective='poisson', metric='poisson', cv_metric='valid poisson-mean',
-                         n_estimators=5000, learning_rate=0.011217,
-                         num_leaves=20, feature_fraction=0.45, lambda_l1=1.26258, lambda_l2=9.50238,
-                         bagging_fraction=0.844, bagging_freq=8, min_data_in_leaf=20, early_stopping_round=100,
+                         n_estimators=5000, learning_rate=0.014325,
+                         num_leaves=25, feature_fraction=0.35, lambda_l1=2.05114, lambda_l2=7.23524,
+                         bagging_fraction=0.772, bagging_freq=2, min_data_in_leaf=20, early_stopping_round=100,
                          cv=5)
 
         self.features = ['is_home',
@@ -84,7 +84,7 @@ class OutcomesLGBM(LightGBM):
                 'early_stopping_round': self.early_stopping_round,
                 'learning_rate': trial.suggest_float('learning_rate', 0.005, 0.03, step=0.000001),
 
-                'feature_fraction': trial.suggest_float('feature_fraction', 0.45, 0.75, step=fraction_step),
+                'feature_fraction': trial.suggest_float('feature_fraction', 0.35, 0.7, step=fraction_step),
                 'num_leaves': trial.suggest_int('num_leaves', 10, 30),
                 'lambda_l1': trial.suggest_float('lambda_l1', 0.5, 4, step=0.00001),
                 'lambda_l2': trial.suggest_float('lambda_l2', 1, 10, step=0.00001),
@@ -140,7 +140,7 @@ class OutcomesLGBM(LightGBM):
 
         predictions['draw'] = (predictions
                                .loc[:, ['home_goals', 'away_goals']]
-                               .apply(lambda df: skellam.pmf(0, df[0], df[1]).sum(), axis=1))
+                               .apply(lambda df: skellam.pmf(0, df[0], df[1]), axis=1))
 
         predictions['away_win'] = (1 - predictions['home_win'] - predictions['draw'])
 
